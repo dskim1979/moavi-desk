@@ -1,0 +1,26 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+  <!-- MOAVI Desk MSI. Build with installer/build.ps1 (publishes moavi-desk.exe first). -->
+  <PropertyGroup>
+    <OutputName>MOAVI-Desk-$(Version)-x64</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <Cultures>ko-KR</Cultures>
+    <PublishDir Condition="'$(PublishDir)' == ''">$(MSBuildThisFileDirectory)..\artifacts\publish\win-x64\</PublishDir>
+    <DefineConstants>Version=$(Version);PublishDir=$([MSBuild]::EnsureTrailingSlash($(PublishDir)));RepoDir=$(MSBuildThisFileDirectory)..\</DefineConstants>
+    <!-- Optional: unpacked virt-viewer tree (bin\remote-viewer.exe ...), installed to <install>\virt-viewer -->
+    <DefineConstants Condition="'$(VirtViewerDir)' != ''">$(DefineConstants);VirtViewerDir=$(VirtViewerDir)</DefineConstants>
+    <!-- TODO(code signing): set SignOutput=true and fill the SignMsi target below once a certificate exists -->
+    <SignOutput>false</SignOutput>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <!-- Directory.Build.props sets portable, which WiX does not take -->
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="6.0.2" />
+  </ItemGroup>
+
+  <Target Name="SignMsi" Condition="'$(SignOutput)' == 'true'">
+    <Error Text="MSI signing is not configured yet (installer/MoaviDesk.Installer.wixproj, SignMsi)" />
+    <!-- <Exec Command="signtool sign /fd sha256 /tr http://timestamp.digicert.com /td sha256 /sha1 $(MoaviSignThumbprint) &quot;%(SignMsi.FullPath)&quot;" /> -->
+  </Target>
+</Project>

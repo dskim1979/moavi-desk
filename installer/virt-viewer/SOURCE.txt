@@ -1,0 +1,29 @@
+virt-viewer for Windows (remote-viewer) — bundled with MOAVI Desk
+=================================================================
+
+This folder holds an unmodified copy of virt-viewer for Windows, unpacked from the official
+installer published by the virt-viewer project:
+
+    https://releases.pagure.org/virt-viewer/virt-viewer-x64-11.0-1.0.msi
+
+virt-viewer is licensed under the GNU General Public License, version 2 or later (GPLv2+).
+The libraries next to it (GTK, GLib, spice-gtk, libusb, usbredir, gstreamer and others from the
+MSYS2/MinGW builds) are licensed under the GNU Lesser General Public License (LGPL) or other
+open-source licences; see the files under share\ and the upstream projects.
+
+virt-viewer is a separate program. MOAVI Desk only starts remote-viewer.exe with a connection
+file; it does not link to it.
+
+Source code
+-----------
+The complete corresponding source for this virt-viewer release is available from
+
+    https://releases.pagure.org/virt-viewer/              (virt-viewer-11.0.tar.xz)
+    https://gitlab.com/virt-viewer/virt-viewer            (tag v11.0)
+    https://gitlab.com/spice/spice-gtk                    (spice-gtk)
+    https://github.com/msys2/MINGW-packages               (build recipes for the bundled libraries)
+
+For at least three years from the date you received this copy, (주)매커스시스템즈 will also
+provide, on request, a copy of the corresponding source code of the GPL/LGPL components shipped
+here, for no more than the cost of physically performing the distribution. Contact:
+https://support.makussystems.co.kr/

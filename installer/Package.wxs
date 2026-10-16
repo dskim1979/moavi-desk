@@ -1,0 +1,65 @@
+<!-- MOAVI Desk MSI: moavi-desk.exe in Program Files\MOAVI Desk, a Start menu shortcut and,
+     when built with VirtViewerDir, virt-viewer under <install>\virt-viewer (MoaviViewer.FindViewer looks there first). -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="MOAVI Desk"
+           Manufacturer="(주)매커스시스템즈"
+           Version="$(Version)"
+           UpgradeCode="d7d8388c-419c-4af6-bd77-c2dc2430902e"
+           Language="1042"
+           Codepage="949"
+           Scope="perMachine">
+    <SummaryInformation Description="MOAVI Desk Client" Manufacturer="(주)매커스시스템즈" />
+
+    <MajorUpgrade DowngradeErrorMessage="더 새로운 버전의 [ProductName]이(가) 이미 설치되어 있습니다." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="moavi.ico" SourceFile="$(RepoDir)src\MoaviDesk\moavi.ico" />
+    <Property Id="ARPPRODUCTICON" Value="moavi.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://www.makussystems.co.kr/" />
+    <Property Id="ARPHELPLINK" Value="https://support.makussystems.co.kr/" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="MOAVI Desk">
+        <?ifdef VirtViewerDir?>
+        <Directory Id="VIRTVIEWERFOLDER" Name="virt-viewer" />
+        <?endif?>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="MOAVI Desk" AllowAbsent="no">
+      <Component Directory="INSTALLFOLDER">
+        <File Id="moavi_desk.exe" Source="$(PublishDir)moavi-desk.exe" KeyPath="yes" />
+      </Component>
+      <Component Directory="INSTALLFOLDER">
+        <File Source="$(RepoDir)LICENSE.md" />
+      </Component>
+      <Component Directory="INSTALLFOLDER">
+        <File Source="$(RepoDir)3rd-party-licenses.md" />
+      </Component>
+
+      <Component Directory="ProgramMenuFolder">
+        <Shortcut Id="StartMenuShortcut"
+                  Name="MOAVI Desk"
+                  Description="MOAVI Desk Client"
+                  Target="[INSTALLFOLDER]moavi-desk.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <!-- ICE38/ICE43: a component with a shortcut needs an HKCU keypath -->
+        <RegistryValue Root="HKCU" Key="Software\Makus Systems\MOAVI Desk" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      <Component Directory="INSTALLFOLDER">
+        <RegistryValue Root="HKLM" Key="Software\Makus Systems\MOAVI Desk" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+      </Component>
+    </Feature>
+
+    <?ifdef VirtViewerDir?>
+    <!-- virt-viewer (GPLv2+) and its GTK/SPICE libraries (LGPL) ship as their own feature; see virt-viewer\SOURCE.txt -->
+    <Feature Id="VirtViewer" Title="virt-viewer (remote-viewer)" AllowAbsent="no">
+      <Files Directory="VIRTVIEWERFOLDER" Include="$(VirtViewerDir)\**" />
+    </Feature>
+    <?endif?>
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(RepoDir)installer\License.rtf" />
+  </Package>
+</Wix>

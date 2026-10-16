@@ -1,0 +1,52 @@
+name: Release
+
+# Push a tag like v0.9.1: builds moavi-desk.exe and the MSI (with virt-viewer) and attaches
+# them to a GitHub release. Nothing is published anywhere else (no WinGet, no AUR).
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  # virt-viewer for Windows (GPLv2+), bundled under <install>\virt-viewer. See README.md (설치 프로그램).
+  VIRT_VIEWER_URL: https://releases.pagure.org/virt-viewer/virt-viewer-x64-11.0-1.0.msi
+  # TODO: pin the SHA-256 of the MSI above; while empty the workflow only prints the hash it got
+  VIRT_VIEWER_SHA256: ''
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Download virt-viewer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/downloads | Out-Null
+          $msi = "artifacts/downloads/virt-viewer-x64.msi"
+          Invoke-WebRequest $env:VIRT_VIEWER_URL -OutFile $msi
+          $hash = (Get-FileHash $msi -Algorithm SHA256).Hash
+          Write-Host "virt-viewer SHA-256: $hash"
+          if ($env:VIRT_VIEWER_SHA256 -and $hash -ne $env:VIRT_VIEWER_SHA256) { throw "virt-viewer hash mismatch" }
+          if (-not $env:VIRT_VIEWER_SHA256) { Write-Host "::warning::VIRT_VIEWER_SHA256 is not pinned ($hash)" }
+
+      - name: Publish and MSI
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          ./installer/build.ps1 -Version $version -VirtViewerMsi artifacts/downloads/virt-viewer-x64.msi
+          Copy-Item artifacts/publish/win-x64/moavi-desk.exe "artifacts/msi/moavi-desk-$version-win-x64.exe"
+
+      - name: GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" --title "MOAVI Desk ${{ github.ref_name }}" --generate-notes (Get-ChildItem artifacts/msi/*.msi, artifacts/msi/*.exe).FullName
