@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <UseAppHost>true</UseAppHost>
+    <AssemblyName>moavi-desk</AssemblyName>
+    <RootNamespace>MoaviDesk</RootNamespace>
+    <Product>MOAVI Desk</Product>
+    <AssemblyTitle>MOAVI Desk Client</AssemblyTitle>
+    <Description>MOAVI Desk Windows client - your desktops over SPICE and VNC</Description>
+    <IsPackable>false</IsPackable>
+
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <SelfContained>true</SelfContained>
+
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <ApplicationIcon>moavi.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="moavi.ico" Link="icon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="YamlDotNet" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root><accessability>internal</accessability>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1"/>
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string"/>
+              <xsd:attribute name="xml:space" default="preserve"/>
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+
+  <!-- Login -->
+  <data name="Username"><value>Username</value></data>
+  <data name="Password"><value>Password</value></data>
+  <data name="OtpLabel"><value>OTP (optional)</value></data>
+  <data name="OtpWatermark"><value>OTP (leave empty if not required)</value></data>
+  <data name="Login"><value>Login</value></data>
+  <data name="ConfigUnreadable"><value>The configuration could not be read and the default settings were loaded. A copy of it was saved as {0}.</value></data>
+
+  <!-- Main window -->
+  <data name="Refresh"><value>Refresh</value></data>
+  <data name="Settings"><value>Settings</value></data>
+
+
+
+  <!-- VM action buttons -->
+  <data name="Start"><value>Start</value></data>
+  <data name="Shutdown"><value>Shutdown</value></data>
+
+  <!-- Confirm dialog -->
+  <data name="Confirm"><value>Confirm</value></data>
+  <data name="Yes"><value>Yes</value></data>
+  <data name="No"><value>No</value></data>
+  <data name="Information"><value>Information</value></data>
+  <data name="Warning"><value>Warning</value></data>
+  <data name="Error"><value>Error</value></data>
+  <data name="Ok"><value>OK</value></data>
+  <data name="Cancel"><value>Cancel</value></data>
+
+
+  <!-- Settings window -->
+  <data name="ViewerPathNotSet"><value>remote-viewer was not found. Install virt-viewer or set its path in Settings.</value></data>
+  <data name="ViewerLaunchFailed"><value>Failed to start the viewer process.</value></data>
+  <data name="More"><value>More</value></data>
+  <data name="Save"><value>Save</value></data>
+
+  <!-- Settings tabs -->
+  <data name="TabKiosk"><value>Kiosk</value></data>
+  <data name="KioskEnable"><value>Enable kiosk mode</value></data>
+  <data name="KioskAdminPassword"><value>Admin password</value></data>
+  <data name="KioskConfirmPassword"><value>Confirm admin password</value></data>
+  <data name="KioskPasswordRequired"><value>Admin password is required when kiosk mode is enabled.</value></data>
+  <data name="KioskPasswordMismatch"><value>Passwords do not match.</value></data>
+  <data name="KioskUnlockPrompt"><value>Enter admin password to continue.</value></data>
+  <data name="KioskUnlockWrong"><value>Wrong admin password.</value></data>
+  <data name="KioskPasswordSet"><value>(password set: leave empty to keep current)</value></data>
+  <data name="KioskForceFullScreen"><value>Force full-screen (recommended)</value></data>
+  <data name="SectionViewer"><value>VIEWER</value></data>
+  <data name="ViewerPath"><value>Viewer path (remote-viewer, used for SPICE and VNC)</value></data>
+  <data name="ViewerPathWatermark"><value>/usr/bin/remote-viewer</value></data>
+  <data name="SelectSpiceViewer"><value>Select SPICE viewer</value></data>
+
+
+  <!-- VM services window -->
+  <data name="Connect"><value>Connect</value></data>
+
+
+  <!-- Host edit window -->
+  <data name="ConfirmCloseSessions"><value>You have open viewer sessions. Continuing will close them.</value></data>
+
+
+  <!-- MOAVI Desk -->
+  <data name="MoaviServer" xml:space="preserve"><value>Server</value></data>
+  <data name="MoaviServerWatermark" xml:space="preserve"><value>desk.example.com</value></data>
+  <data name="MoaviServerRequired" xml:space="preserve"><value>Enter the MOAVI Desk server address.</value></data>
+  <data name="MoaviIgnoreCert" xml:space="preserve"><value>Accept the server certificate without checking (test servers only)</value></data>
+  <data name="MoaviSignInTitle" xml:space="preserve"><value>Sign in to your desktop</value></data>
+  <data name="MoaviErrInvalid" xml:space="preserve"><value>The username or password is wrong.</value></data>
+  <data name="MoaviErrLocked" xml:space="preserve"><value>This account is locked for now. Try again later.</value></data>
+  <data name="MoaviErrNetwork" xml:space="preserve"><value>Cannot reach the server: {0}</value></data>
+  <data name="MoaviOtpNeeded" xml:space="preserve"><value>Enter the code from your authenticator app.</value></data>
+  <data name="MoaviMyDesktops" xml:space="preserve"><value>My desktops</value></data>
+  <data name="MoaviNoDesktops" xml:space="preserve"><value>No desktop is assigned to you yet. Ask your administrator.</value></data>
+  <data name="MoaviSignOut" xml:space="preserve"><value>Sign out</value></data>
+  <data name="MoaviRemoteSupport" xml:space="preserve"><value>Remote support</value></data>
+  <data name="MoaviStateReady" xml:space="preserve"><value>Ready</value></data>
+  <data name="MoaviStateRunning" xml:space="preserve"><value>Running</value></data>
+  <data name="MoaviStateStopped" xml:space="preserve"><value>Stopped</value></data>
+  <data name="MoaviStateBusy" xml:space="preserve"><value>Working…</value></data>
+  <data name="MoaviStateError" xml:space="preserve"><value>Problem</value></data>
+  <data name="MoaviReboot" xml:space="preserve"><value>Restart</value></data>
+  <data name="MoaviConfirmShutdown" xml:space="preserve"><value>Shut down {0}? Unsaved work is lost.</value></data>
+  <data name="MoaviConfirmReboot" xml:space="preserve"><value>Restart {0}?</value></data>
+  <data name="MoaviFullScreen" xml:space="preserve"><value>Full screen</value></data>
+  <data name="MoaviTerminalPending" xml:space="preserve"><value>This PC is waiting for an administrator to approve it (단말 관리).</value></data>
+  <data name="MoaviUpdateAvailable" xml:space="preserve"><value>MOAVI Desk {0} is available.</value></data>
+  <data name="MoaviUpdateRequired" xml:space="preserve"><value>This server needs MOAVI Desk {0} or later. Please update.</value></data>
+  <data name="MoaviDownload" xml:space="preserve"><value>Download</value></data>
+  <data name="MoaviKioskNoSession" xml:space="preserve"><value>No class is running in this room now.</value></data>
+  <data name="MoaviKioskFull" xml:space="preserve"><value>Every desktop of this class is taken.</value></data>
+  <data name="MoaviKioskBadKey" xml:space="preserve"><value>The terminal key of this PC is not valid. Ask your administrator.</value></data>
+  <data name="MoaviTerminalKey" xml:space="preserve"><value>Terminal key (LAB PCs, optional)</value></data>
+  <data name="MoaviAbout" xml:space="preserve"><value>MOAVI Desk Client {0} · (주)매커스시스템즈
+Open-source notices: LICENSE.md and 3rd-party-licenses.md in the install folder.</value></data>
+  <data name="MoaviServerAddress" xml:space="preserve"><value>Server address (IP or domain)</value></data>
+  <data name="MoaviServerPort" xml:space="preserve"><value>Port</value></data>
+  <data name="MoaviUseHttps" xml:space="preserve"><value>Use HTTPS (recommended)</value></data>
+  <data name="MoaviTestConnection" xml:space="preserve"><value>Test connection</value></data>
+  <data name="MoaviTestOk" xml:space="preserve"><value>Connected ({0} ms)</value></data>
+  <data name="MoaviTestFail" xml:space="preserve"><value>Could not connect: {0}</value></data>
+  <data name="MoaviTestTimeout" xml:space="preserve"><value>no answer in time</value></data>
+  <data name="MoaviTestNotEngine" xml:space="preserve"><value>it answers, but it is not a MOAVI Desk server</value></data>
+  <data name="MoaviServerChecking" xml:space="preserve"><value>Checking the server…</value></data>
+  <data name="MoaviServerOnline" xml:space="preserve"><value>Server connected</value></data>
+  <data name="MoaviServerOffline" xml:space="preserve"><value>Cannot reach the server. Check the network or ask your administrator.</value></data>
+  <data name="MoaviServerNotSet" xml:space="preserve"><value>No server is set. Set it in Settings (gear icon).</value></data>
+  <data name="MoaviPortInvalid" xml:space="preserve"><value>The port must be a number from 1 to 65535.</value></data>
+  <data name="MoaviServerInvalid" xml:space="preserve"><value>The server address is not valid.</value></data>
+</root>

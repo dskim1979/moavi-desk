@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root><accessability>internal</accessability>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1"/>
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string"/>
+              <xsd:attribute name="xml:space" default="preserve"/>
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+
+  <!-- 한국어 -->
+  <data name="Username" xml:space="preserve"><value>사용자 이름</value></data>
+  <data name="Password" xml:space="preserve"><value>비밀번호</value></data>
+  <data name="OtpLabel" xml:space="preserve"><value>OTP (선택)</value></data>
+  <data name="OtpWatermark" xml:space="preserve"><value>OTP (필요할 때만 입력)</value></data>
+  <data name="Login" xml:space="preserve"><value>로그인</value></data>
+  <data name="ConfigUnreadable" xml:space="preserve"><value>설정을 읽을 수 없어 기본 설정을 불러왔습니다. 기존 파일은 {0}에 저장했습니다.</value></data>
+  <data name="Refresh" xml:space="preserve"><value>새로 고침</value></data>
+  <data name="Settings" xml:space="preserve"><value>설정</value></data>
+  <data name="Start" xml:space="preserve"><value>시작</value></data>
+  <data name="Shutdown" xml:space="preserve"><value>종료</value></data>
+  <data name="Confirm" xml:space="preserve"><value>확인</value></data>
+  <data name="Yes" xml:space="preserve"><value>예</value></data>
+  <data name="No" xml:space="preserve"><value>아니요</value></data>
+  <data name="Information" xml:space="preserve"><value>알림</value></data>
+  <data name="Warning" xml:space="preserve"><value>경고</value></data>
+  <data name="Error" xml:space="preserve"><value>오류</value></data>
+  <data name="Ok" xml:space="preserve"><value>확인</value></data>
+  <data name="Cancel" xml:space="preserve"><value>취소</value></data>
+  <data name="ViewerPathNotSet" xml:space="preserve"><value>remote-viewer를 찾지 못했습니다. virt-viewer를 설치하거나 설정에서 경로를 지정하세요.</value></data>
+  <data name="ViewerLaunchFailed" xml:space="preserve"><value>뷰어를 실행하지 못했습니다.</value></data>
+  <data name="More" xml:space="preserve"><value>더 보기</value></data>
+  <data name="Save" xml:space="preserve"><value>저장</value></data>
+  <data name="TabKiosk" xml:space="preserve"><value>키오스크</value></data>
+  <data name="KioskEnable" xml:space="preserve"><value>키오스크 모드 사용</value></data>
+  <data name="KioskAdminPassword" xml:space="preserve"><value>관리자 비밀번호</value></data>
+  <data name="KioskConfirmPassword" xml:space="preserve"><value>관리자 비밀번호 확인</value></data>
+  <data name="KioskPasswordRequired" xml:space="preserve"><value>키오스크 모드에는 관리자 비밀번호가 필요합니다.</value></data>
+  <data name="KioskPasswordMismatch" xml:space="preserve"><value>비밀번호가 일치하지 않습니다.</value></data>
+  <data name="KioskUnlockPrompt" xml:space="preserve"><value>계속하려면 관리자 비밀번호를 입력하세요.</value></data>
+  <data name="KioskUnlockWrong" xml:space="preserve"><value>관리자 비밀번호가 틀렸습니다.</value></data>
+  <data name="KioskPasswordSet" xml:space="preserve"><value>(설정됨: 비워 두면 그대로 유지)</value></data>
+  <data name="KioskForceFullScreen" xml:space="preserve"><value>전체 화면 강제 (권장)</value></data>
+  <data name="SectionViewer" xml:space="preserve"><value>뷰어</value></data>
+  <data name="ViewerPath" xml:space="preserve"><value>뷰어 경로 (remote-viewer, SPICE·VNC용)</value></data>
+  <data name="ViewerPathWatermark" xml:space="preserve"><value>C:\Program Files\VirtViewer\bin\remote-viewer.exe</value></data>
+  <data name="SelectSpiceViewer" xml:space="preserve"><value>SPICE 뷰어 선택</value></data>
+  <data name="Connect" xml:space="preserve"><value>접속</value></data>
+  <data name="ConfirmCloseSessions" xml:space="preserve"><value>열려 있는 뷰어 세션이 있습니다. 계속하면 닫힙니다.</value></data>
+
+  <!-- MOAVI Desk -->
+  <data name="MoaviServer" xml:space="preserve"><value>서버</value></data>
+  <data name="MoaviServerWatermark" xml:space="preserve"><value>desk.example.com</value></data>
+  <data name="MoaviServerRequired" xml:space="preserve"><value>MOAVI Desk 서버 주소를 입력하세요.</value></data>
+  <data name="MoaviIgnoreCert" xml:space="preserve"><value>서버 인증서 검사 안 함 (테스트 서버 전용)</value></data>
+  <data name="MoaviSignInTitle" xml:space="preserve"><value>내 데스크톱에 로그인</value></data>
+  <data name="MoaviErrInvalid" xml:space="preserve"><value>사용자 이름 또는 비밀번호가 틀렸습니다.</value></data>
+  <data name="MoaviErrLocked" xml:space="preserve"><value>계정이 잠시 잠겼습니다. 잠시 후 다시 시도하세요.</value></data>
+  <data name="MoaviErrNetwork" xml:space="preserve"><value>서버에 연결할 수 없습니다: {0}</value></data>
+  <data name="MoaviOtpNeeded" xml:space="preserve"><value>인증 앱의 코드를 입력하세요.</value></data>
+  <data name="MoaviMyDesktops" xml:space="preserve"><value>내 데스크톱</value></data>
+  <data name="MoaviNoDesktops" xml:space="preserve"><value>아직 배정된 데스크톱이 없습니다. 관리자에게 문의하세요.</value></data>
+  <data name="MoaviSignOut" xml:space="preserve"><value>로그아웃</value></data>
+  <data name="MoaviRemoteSupport" xml:space="preserve"><value>원격지원 요청</value></data>
+  <data name="MoaviStateReady" xml:space="preserve"><value>준비됨</value></data>
+  <data name="MoaviStateRunning" xml:space="preserve"><value>실행 중</value></data>
+  <data name="MoaviStateStopped" xml:space="preserve"><value>꺼짐</value></data>
+  <data name="MoaviStateBusy" xml:space="preserve"><value>작업 중…</value></data>
+  <data name="MoaviStateError" xml:space="preserve"><value>문제 있음</value></data>
+  <data name="MoaviReboot" xml:space="preserve"><value>다시 시작</value></data>
+  <data name="MoaviConfirmShutdown" xml:space="preserve"><value>{0}을(를) 종료할까요? 저장하지 않은 작업은 사라집니다.</value></data>
+  <data name="MoaviConfirmReboot" xml:space="preserve"><value>{0}을(를) 다시 시작할까요?</value></data>
+  <data name="MoaviFullScreen" xml:space="preserve"><value>전체 화면</value></data>
+  <data name="MoaviTerminalPending" xml:space="preserve"><value>이 PC는 관리자 승인을 기다리고 있습니다 (단말 관리).</value></data>
+  <data name="MoaviUpdateAvailable" xml:space="preserve"><value>MOAVI Desk {0}이(가) 나왔습니다.</value></data>
+  <data name="MoaviUpdateRequired" xml:space="preserve"><value>이 서버는 MOAVI Desk {0} 이상이 필요합니다. 업데이트하세요.</value></data>
+  <data name="MoaviDownload" xml:space="preserve"><value>다운로드</value></data>
+  <data name="MoaviKioskNoSession" xml:space="preserve"><value>지금 이 실습실에는 진행 중인 수업이 없습니다.</value></data>
+  <data name="MoaviKioskFull" xml:space="preserve"><value>이 수업의 데스크톱이 모두 사용 중입니다.</value></data>
+  <data name="MoaviKioskBadKey" xml:space="preserve"><value>이 PC의 단말 키가 올바르지 않습니다. 관리자에게 문의하세요.</value></data>
+  <data name="MoaviTerminalKey" xml:space="preserve"><value>단말 키 (LAB PC, 선택)</value></data>
+  <data name="MoaviAbout" xml:space="preserve"><value>MOAVI Desk 클라이언트 {0} · (주)매커스시스템즈
+오픈소스 고지: 설치 폴더의 LICENSE.md, 3rd-party-licenses.md</value></data>
+  <data name="MoaviServerAddress" xml:space="preserve"><value>서버 주소 (IP 또는 도메인)</value></data>
+  <data name="MoaviServerPort" xml:space="preserve"><value>포트</value></data>
+  <data name="MoaviUseHttps" xml:space="preserve"><value>HTTPS 사용 (권장)</value></data>
+  <data name="MoaviTestConnection" xml:space="preserve"><value>접속 테스트</value></data>
+  <data name="MoaviTestOk" xml:space="preserve"><value>접속 성공 ({0} ms)</value></data>
+  <data name="MoaviTestFail" xml:space="preserve"><value>접속 실패: {0}</value></data>
+  <data name="MoaviTestTimeout" xml:space="preserve"><value>응답 시간 초과</value></data>
+  <data name="MoaviTestNotEngine" xml:space="preserve"><value>응답은 있지만 MOAVI Desk 서버가 아닙니다</value></data>
+  <data name="MoaviServerChecking" xml:space="preserve"><value>서버 확인 중…</value></data>
+  <data name="MoaviServerOnline" xml:space="preserve"><value>서버 연결됨</value></data>
+  <data name="MoaviServerOffline" xml:space="preserve"><value>서버에 연결할 수 없습니다. 네트워크를 확인하거나 관리자에게 문의하세요.</value></data>
+  <data name="MoaviServerNotSet" xml:space="preserve"><value>서버가 설정되지 않았습니다. 설정(톱니바퀴)에서 지정하세요.</value></data>
+  <data name="MoaviPortInvalid" xml:space="preserve"><value>포트는 1~65535 사이 숫자여야 합니다.</value></data>
+  <data name="MoaviServerInvalid" xml:space="preserve"><value>서버 주소가 올바르지 않습니다.</value></data>
+</root>
