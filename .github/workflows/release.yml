@@ -13,8 +13,8 @@ permissions:
 env:
   # virt-viewer for Windows (GPLv2+), bundled under <install>\virt-viewer. See README.md (설치 프로그램).
   VIRT_VIEWER_URL: https://releases.pagure.org/virt-viewer/virt-viewer-x64-11.0-1.0.msi
-  # TODO: pin the SHA-256 of the MSI above; while empty the workflow only prints the hash it got
-  VIRT_VIEWER_SHA256: ''
+  # SHA-256 of that MSI; the release stops if the download differs
+  VIRT_VIEWER_SHA256: 'B7DE0474E97FE1E81101F2406FCF603FE08666BCB3816C3C465C8D64330BE610'
 
 jobs:
   release:
