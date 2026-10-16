@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        run: dotnet build src/MoaviDesk/MoaviDesk.csproj -c Release
+
+      # Publishes moavi-desk.exe and packs the MSI (without virt-viewer; the release workflow bundles it)
+      - name: Publish and MSI
+        shell: pwsh
+        run: ./installer/build.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moavi-desk-win-x64
+          path: artifacts/publish/win-x64/moavi-desk.exe
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moavi-desk-msi
+          path: artifacts/msi/*.msi
+          if-no-files-found: error
