@@ -2,6 +2,8 @@
 
 <img src="docs/moavi.svg" alt="" height="48" align="left">
 
+> **MOAVI Desk는 100% 무료 오픈소스로 배포됩니다.** 이 클라이언트는 MIT, 서버(콘솔 · 엔진)는 AGPL-3.0입니다.
+
 MOAVI Desk 사용자가 설치해 쓰는 Windows 클라이언트입니다. 브라우저(HTML5 콘솔) 없이 내 데스크톱을
 SPICE 또는 VNC로 엽니다. (주)매커스시스템즈 MOAVI Desk 서버에 붙습니다.
 
