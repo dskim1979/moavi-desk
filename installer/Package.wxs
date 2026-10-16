@@ -19,6 +19,7 @@
     <Property Id="ARPURLINFOABOUT" Value="https://www.makussystems.co.kr/" />
     <Property Id="ARPHELPLINK" Value="https://support.makussystems.co.kr/" />
 
+    <StandardDirectory Id="DesktopFolder" />
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="MOAVI Desk">
         <?ifdef VirtViewerDir?>
@@ -47,6 +48,14 @@
         <!-- ICE38/ICE43: a component with a shortcut needs an HKCU keypath -->
         <RegistryValue Root="HKCU" Key="Software\Makus Systems\MOAVI Desk" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
+      <Component Directory="DesktopFolder">
+        <Shortcut Id="DesktopShortcut"
+                  Name="MOAVI Desk"
+                  Description="MOAVI Desk Client"
+                  Target="[INSTALLFOLDER]moavi-desk.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\Makus Systems\MOAVI Desk" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
       <Component Directory="INSTALLFOLDER">
         <RegistryValue Root="HKLM" Key="Software\Makus Systems\MOAVI Desk" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
       </Component>
@@ -61,5 +70,8 @@
 
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
     <WixVariable Id="WixUILicenseRtf" Value="$(RepoDir)installer\License.rtf" />
+    <!-- MOAVI look for the wizard: navy picture on the welcome and finish pages, mark on the banner -->
+    <WixVariable Id="WixUIDialogBmp" Value="$(RepoDir)installer\WixUIDialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(RepoDir)installer\WixUIBanner.bmp" />
   </Package>
 </Wix>
