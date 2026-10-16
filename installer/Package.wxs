@@ -19,6 +19,41 @@
     <Property Id="ARPURLINFOABOUT" Value="https://www.makussystems.co.kr/" />
     <Property Id="ARPHELPLINK" Value="https://support.makussystems.co.kr/" />
 
+    <!-- Unattended install for a room's PCs (README "실습실 PC에 한꺼번에 설치"):
+           msiexec /i MOAVI-Desk-<version>-x64.msi /qn SERVER=desk.example.com PORT=443 HTTPS=1 KIOSK=1 ENROLL_CODE=MDE-XXXX-XXXX-XXXX
+         The values go to the PC's shared config, %ProgramData%\MOAVI Desk\config, which wins over each user's
+         own settings and is locked in Settings; ENROLL_CODE goes to %ProgramData%\MOAVI Desk\terminal, from
+         which the client enrols on its first start. A property left out keeps what the PC has (upgrades). -->
+    <Property Id="SERVER" Secure="yes" />
+    <Property Id="PORT" Secure="yes" />
+    <Property Id="HTTPS" Secure="yes" />
+    <Property Id="KIOSK" Secure="yes" />
+    <Property Id="ENROLL_CODE" Secure="yes" Hidden="yes" />
+    <!-- the kiosk admin password as moavi-desk keeps it (PBKDF2 iterations.salt.hash), e.g. from the console's install command -->
+    <Property Id="KIOSK_PASSWORD_HASH" Secure="yes" Hidden="yes" />
+
+    <!-- moavi-desk.exe writes them (Config/MachineConfig.cs, MachineSetup) as SYSTEM after the files are in;
+         a failure rolls the installation back -->
+    <CustomAction Id="WriteMachineConfig"
+                  FileRef="moavi_desk.exe"
+                  ExeCommand="--machine-config --server &quot;[SERVER]&quot; --port &quot;[PORT]&quot; --https &quot;[HTTPS]&quot; --kiosk &quot;[KIOSK]&quot; --enroll-code &quot;[ENROLL_CODE]&quot; --kiosk-password-hash &quot;[KIOSK_PASSWORD_HASH]&quot;"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="check" />
+    <!-- an uninstall (not the one inside an upgrade) takes the shared config, the terminal's key with it -->
+    <CustomAction Id="RemoveMachineConfig"
+                  FileRef="moavi_desk.exe"
+                  ExeCommand="--machine-config --remove"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom Action="WriteMachineConfig" After="InstallFiles"
+              Condition="NOT REMOVE~=&quot;ALL&quot; AND (SERVER OR PORT OR HTTPS OR KIOSK OR ENROLL_CODE OR KIOSK_PASSWORD_HASH)" />
+      <Custom Action="RemoveMachineConfig" Before="RemoveFiles"
+              Condition="REMOVE~=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+    </InstallExecuteSequence>
+
     <StandardDirectory Id="DesktopFolder" />
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="MOAVI Desk">

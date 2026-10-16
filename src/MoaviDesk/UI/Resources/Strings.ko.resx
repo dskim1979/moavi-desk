@@ -109,4 +109,13 @@
   <data name="MoaviServerNotSet" xml:space="preserve"><value>서버가 설정되지 않았습니다. 설정(톱니바퀴)에서 지정하세요.</value></data>
   <data name="MoaviPortInvalid" xml:space="preserve"><value>포트는 1~65535 사이 숫자여야 합니다.</value></data>
   <data name="MoaviServerInvalid" xml:space="preserve"><value>서버 주소가 올바르지 않습니다.</value></data>
+  <data name="MoaviEnrolling" xml:space="preserve"><value>이 PC를 MOAVI Desk에 등록하는 중…</value></data>
+  <data name="MoaviEnrollPending" xml:space="preserve"><value>이 PC가 등록되었습니다. 관리자 승인을 기다립니다 (단말 관리).</value></data>
+  <data name="MoaviEnrollPendingLab" xml:space="preserve"><value>이 PC가 등록되었습니다 ({0}). 관리자 승인을 기다립니다 (단말 관리).</value></data>
+  <data name="MoaviEnrollDone" xml:space="preserve"><value>단말 키를 받았습니다 · {0}</value></data>
+  <data name="MoaviEnrollCodeRefused" xml:space="preserve"><value>등록 코드를 쓸 수 없습니다: {0}</value></data>
+  <data name="MoaviEnrollRetry" xml:space="preserve"><value>서버에 연결할 수 없어 등록을 잠시 뒤 다시 시도합니다.</value></data>
+  <data name="MoaviEnrollTooMany" xml:space="preserve"><value>등록 시도가 너무 많습니다. 5분 뒤 다시 시도합니다.</value></data>
+  <data name="MoaviEnrollNoMac" xml:space="preserve"><value>네트워크 어댑터를 찾지 못해 이 PC를 등록할 수 없습니다.</value></data>
+  <data name="MoaviManagedNote" xml:space="preserve"><value>흐리게 보이는 항목은 이 PC의 공용 설정(%ProgramData%\MOAVI Desk)이 정한 값이라 여기서 바꿀 수 없습니다.</value></data>
 </root>

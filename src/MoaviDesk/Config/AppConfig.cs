@@ -7,9 +7,21 @@ using YamlDotNet.Serialization;
 
 namespace MoaviDesk.Config;
 
-/// <summary>The client's settings, kept in %USERPROFILE%\.moavi-desk\config.</summary>
+/// <summary>
+/// The client's settings, kept in %USERPROFILE%\.moavi-desk\config, with the PC's own settings
+/// (%ProgramData%\MOAVI Desk, <see cref="MachineConfig"/>) laid over them.
+/// </summary>
 internal class AppConfig
 {
+    /// <summary>
+    /// Settings the PC's config (or the terminal's enrolment) decides: shown locked in Settings and
+    /// never written to the user's file.
+    /// </summary>
+    [YamlIgnore]
+    public HashSet<string> Managed { get; } = [];
+
+    public bool IsManaged(string name) => Managed.Contains(name);
+
     public const string ThemeSystem = "System";
     public const string ThemeLight = "Light";
     public const string ThemeDark = "Dark";

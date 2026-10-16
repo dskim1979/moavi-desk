@@ -27,7 +27,22 @@ SPICE 또는 VNC로 엽니다. (주)매커스시스템즈 MOAVI Desk 서버에 �
 - **업데이트**: 엔진의 `/api/vlab/client/config`가 알려 주는 최신 버전이면 다운로드 버튼을 보여 주고,
   최소 버전보다 낮으면 로그인을 막고 다운로드 페이지를 엽니다.
 - **원격지원 요청**: 화이트라벨의 지원 URL, 없으면 https://support.makussystems.co.kr/ 을 엽니다.
-- 한국어와 영어. 설정은 `%USERPROFILE%\.moavi-desk\config`에 저장합니다.
+- **실습실 PC 자동 등록**: 등록 코드(`ENROLL_CODE`)를 넣어 설치한 PC는 처음 켤 때 로그인 없이 스스로 단말로 등록하고,
+  관리자가 승인하면 키오스크 키를 받아 저장합니다(아래 "실습실 PC에 한꺼번에 설치"). 로그인 화면에 등록 상태가 나옵니다.
+- 한국어와 영어. 설정은 아래 "설정 파일"을 보세요.
+
+## 설정 파일
+
+| 파일 | 누가 쓰나 | 내용 |
+|---|---|---|
+| `%USERPROFILE%\.moavi-desk\config` | 사용자(설정 창) | 사용자 자신의 설정 (YAML) |
+| `%ProgramData%\MOAVI Desk\config` | 설치 프로그램(SYSTEM). 사용자는 읽기만 | PC 공용 설정: `server-url`, `kiosk`, `kiosk-admin-password-hash` 등 (YAML) |
+| `%ProgramData%\MOAVI Desk\terminal` | 설치 프로그램이 만들고, 클라이언트가 씀(사용자 읽기 · 쓰기, 삭제 불가) | 등록 코드, 승인 대기 중의 확인 토큰, 받은 키오스크 키 |
+
+읽는 순서(뒤가 앞을 덮음): 기본값 → 사용자 설정 → PC 공용 설정 → `terminal`의 키오스크 키.
+공용 설정 · `terminal`이 정한 항목은 설정 창에서 흐리게 잠기고 사용자 파일에 저장되지 않습니다(사용자 파일에는 사용자가 전에 넣은 값이 그대로 남음).
+공용 설정이 `kiosk: true`이면 그 PC는 키오스크 모드로 고정되고, `kiosk-admin-password-hash`가 있으면 설정 열기와 종료에 그 비밀번호가 필요합니다.
+공용 설정 파일이 없으면 예전과 똑같이 사용자 설정만 씁니다.
 
 ## 빌드
 
@@ -56,6 +71,33 @@ powershell -ExecutionPolicy Bypass -File installer/build.ps1 -VirtViewerMsi virt
   (`bin\remote-viewer.exe` 등)에 별도 기능(feature)으로 넣습니다. 클라이언트(`Services/Viewer.cs`의
   `FindViewer`)는 이 위치를 가장 먼저 찾고, 없으면 `C:\Program Files\VirtViewer*`를 찾습니다.
   주지 않으면 virt-viewer 없이 만들어지며, 이때는 사용자가 virt-viewer를 따로 설치해야 합니다.
+
+### 실습실 PC에 한꺼번에 설치 (무인 설치)
+
+관리 콘솔 **LAB > 단말 관리 > 등록 코드 만들기**에서 코드를 만들고 같은 창의 설치 명령을 복사합니다.
+
+```
+msiexec /i MOAVI-Desk-0.9.1-x64.msi /qn SERVER=desk.example.com PORT=443 HTTPS=1 KIOSK=1 ENROLL_CODE=MDE-XXXX-XXXX-XXXX
+```
+
+| 속성 | 뜻 |
+|---|---|
+| `SERVER` | 엔진(콘솔) 주소. IP, 도메인, `host:port` 또는 `https://…` |
+| `PORT` | 포트 (없으면 주소의 포트, 그것도 없으면 443/80) |
+| `HTTPS` | `1`(기본) 또는 `0` |
+| `KIOSK` | `1`이면 키오스크 모드(전체 화면, 설정 · 종료에 관리자 비밀번호) |
+| `ENROLL_CODE` | 등록 코드. PC가 처음 켤 때 이 코드로 스스로 등록 |
+| `KIOSK_PASSWORD_HASH` | 키오스크 관리자 비밀번호의 해시(`반복.솔트.해시`). 콘솔의 설치 명령 창이 만들어 줌 |
+
+- 설치 프로그램이 파일을 넣은 뒤 `moavi-desk.exe --machine-config …`를 SYSTEM으로 실행해 공용 설정을 씁니다.
+  값이 잘못되면(예: `KIOSK=2`) 설치가 되돌려지고 이유는 `%ProgramData%\MOAVI Desk\setup.log`에 남습니다.
+- 준 속성만 바뀝니다. 속성 없이 새 버전을 설치(업그레이드)하면 공용 설정과 받은 키는 그대로입니다.
+- 이미 키를 받은 PC는 `ENROLL_CODE`로 다시 설치해도 다시 등록하지 않습니다. 다시 등록하려면 `%ProgramData%\MOAVI Desk\terminal`을
+  지운 뒤 다시 설치합니다.
+- 제거하면(업그레이드 중의 제거는 빼고) `%ProgramData%\MOAVI Desk`가 지워집니다.
+- PC 쪽 흐름: 처음 켜짐 → `POST /api/vlab/terminals/enroll {mac, name, code}` → 확인 토큰을 `terminal`에 저장 → 30초마다
+  `POST /api/vlab/terminals/enroll/status {token}` → 승인되면 키오스크 키를 한 번 받아 `terminal`에 저장(토큰은 그때 무효).
+  등록 코드가 틀리거나 꺼졌으면 로그인 화면에 이유가 나오고, 다음에 켤 때 다시 시도합니다.
 
 ### CI와 릴리스
 
@@ -95,6 +137,7 @@ powershell -ExecutionPolicy Bypass -File installer/build.ps1 -VirtViewerMsi virt
 - 코드 서명(위 참고).
 - `VIRT_VIEWER_SHA256` 고정.
 - 실제 클러스터에서 SPICE/VNC 접속 확인.
+- 실제 실습실 PC에서 무인 설치(`/qn`, GPO) · 자동 등록 · 키 전달 확인.
 
 ## 라이선스
 

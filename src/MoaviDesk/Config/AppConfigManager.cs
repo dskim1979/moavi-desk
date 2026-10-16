@@ -32,7 +32,22 @@ internal static class AppConfigManager
     /// </summary>
     public static string? UnreadableConfigBackup { get; private set; }
 
+    // the user's own values as last read or written: what a managed setting keeps in their file
+    private static AppConfig _userValues = new();
+
+    /// <summary>
+    /// Reads in this order, each over the one before: defaults, the user's file, the PC's config
+    /// (%ProgramData%\MOAVI Desk\config) and the terminal's key (%ProgramData%\MOAVI Desk\terminal).
+    /// </summary>
     public static AppConfig Load()
+    {
+        var config = LoadUser();
+        _userValues = LoadUser();
+        MachineConfig.ApplyTo(config);
+        return config;
+    }
+
+    private static AppConfig LoadUser()
     {
         if (!File.Exists(ConfigFile)) { return new AppConfig(); }
         try
@@ -61,12 +76,21 @@ internal static class AppConfigManager
     {
         Directory.CreateDirectory(ConfigDir);
 
+        // the PC's settings stay out of the user's file: it keeps the user's own values for them
+        var own = Deserializer.Deserialize<AppConfig>(Serializer.Serialize(config)) ?? new AppConfig();
+        foreach (var name in config.Managed)
+        {
+            var p = typeof(AppConfig).GetProperty(name)!;
+            p.SetValue(own, p.GetValue(_userValues));
+        }
+        _userValues = own;
+
         // Write to a temp file in the same directory, then move over the target:
         // a crash mid-write must not leave a truncated config behind.
         // The temp file is created 600, so the config takes that mode with the move.
         var tmpFile = $"{ConfigFile}.tmp";
         File.Delete(tmpFile);
-        WritePrivate(tmpFile, System.Text.Encoding.UTF8.GetBytes(Serializer.Serialize(config)), FileMode.CreateNew);
+        WritePrivate(tmpFile, System.Text.Encoding.UTF8.GetBytes(Serializer.Serialize(own)), FileMode.CreateNew);
         File.Move(tmpFile, ConfigFile, overwrite: true);
 
         // A readable config is on disk again: the login notice about the backup is no longer needed.

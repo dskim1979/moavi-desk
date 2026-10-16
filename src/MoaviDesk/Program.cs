@@ -13,8 +13,11 @@ namespace MoaviDesk;
 internal sealed class Program
 {
     [STAThread]
-    public static void Main(string[] args)
+    public static int Main(string[] args)
     {
+        // the installer writing the PC's settings (msiexec … SERVER=… ENROLL_CODE=…): no window
+        if (args.Contains(MachineSetup.Switch)) { return MachineSetup.Run(args); }
+
         var config = AppConfigManager.Load();
         ApplyLanguage(config.Language);
 
@@ -35,6 +38,6 @@ internal sealed class Program
         if (!Snapshot.TryStart(config, lifetime))
 #endif
         lifetime.MainWindow = LoginWindow.Create(config);
-        lifetime.Start(args);
+        return lifetime.Start(args);
     }
 }

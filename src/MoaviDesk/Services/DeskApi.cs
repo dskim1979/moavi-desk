@@ -52,6 +52,23 @@ internal sealed class ClientConfig
     [JsonPropertyName("support_url")] public string? SupportUrl { get; set; }
 }
 
+/// <summary>The engine's answer to an enrolling PC (enroll and enroll/status).</summary>
+internal sealed class EnrollAnswer
+{
+    public string? Token { get; set; }
+    public string State { get; set; } = "";
+    public string? Key { get; set; }
+    public EnrollRef? Lab { get; set; }
+    public EnrollRef? Terminal { get; set; }
+    [JsonPropertyName("poll_seconds")] public int PollSeconds { get; set; } = 30;
+}
+
+internal sealed class EnrollRef
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+}
+
 internal sealed class DeskApiException(int status, string code, string message) : Exception(message)
 {
     public int Status { get; } = status;
@@ -241,6 +258,20 @@ internal sealed class DeskApi : IDisposable
         }
         catch { return null; }
     }
+
+    /// <summary>
+    /// A room's PC enrols with its installer's code, no one signed in (POST /api/vlab/terminals/enroll):
+    /// it gets a poll token and its state (pending, or approved when the code approves at once).
+    /// </summary>
+    public async Task<EnrollAnswer> EnrollAsync(string mac, string name, string code)
+        => (await SendAsync(HttpMethod.Post, "api/vlab/terminals/enroll", new { mac, name, code })).Deserialize<EnrollAnswer>(Json)!;
+
+    /// <summary>
+    /// The enrolled PC asks again (POST /api/vlab/terminals/enroll/status): pending, or approved with the
+    /// kiosk key, which the engine hands out this once.
+    /// </summary>
+    public async Task<EnrollAnswer> EnrollStatusAsync(string token)
+        => (await SendAsync(HttpMethod.Post, "api/vlab/terminals/enroll/status", new { token })).Deserialize<EnrollAnswer>(Json)!;
 
     /// <summary>LAB kiosk: the session running in this terminal's room and a desktop of it for the user.</summary>
     public async Task<(string DesktopId, string DesktopName, string Lab)> KioskStartAsync(string terminalKey)

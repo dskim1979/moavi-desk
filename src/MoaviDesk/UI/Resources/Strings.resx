@@ -129,4 +129,13 @@ Open-source notices: LICENSE.md and 3rd-party-licenses.md in the install folder.
   <data name="MoaviServerNotSet" xml:space="preserve"><value>No server is set. Set it in Settings (gear icon).</value></data>
   <data name="MoaviPortInvalid" xml:space="preserve"><value>The port must be a number from 1 to 65535.</value></data>
   <data name="MoaviServerInvalid" xml:space="preserve"><value>The server address is not valid.</value></data>
+  <data name="MoaviEnrolling" xml:space="preserve"><value>Enrolling this PC with MOAVI Desk…</value></data>
+  <data name="MoaviEnrollPending" xml:space="preserve"><value>This PC is enrolled and waits for an administrator to approve it (단말 관리).</value></data>
+  <data name="MoaviEnrollPendingLab" xml:space="preserve"><value>This PC is enrolled ({0}) and waits for an administrator to approve it (단말 관리).</value></data>
+  <data name="MoaviEnrollDone" xml:space="preserve"><value>This PC got its terminal key · {0}</value></data>
+  <data name="MoaviEnrollCodeRefused" xml:space="preserve"><value>The enrolment code cannot be used: {0}</value></data>
+  <data name="MoaviEnrollRetry" xml:space="preserve"><value>The server does not answer; enrolment tries again shortly.</value></data>
+  <data name="MoaviEnrollTooMany" xml:space="preserve"><value>Too many enrolment tries; trying again in 5 minutes.</value></data>
+  <data name="MoaviEnrollNoMac" xml:space="preserve"><value>No network adapter found, so this PC cannot enrol.</value></data>
+  <data name="MoaviManagedNote" xml:space="preserve"><value>Greyed-out settings are set by this PC's shared config (%ProgramData%\MOAVI Desk) and cannot be changed here.</value></data>
 </root>

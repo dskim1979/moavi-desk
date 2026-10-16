@@ -113,6 +113,28 @@ internal static class SettingsWindow
 
         var lblError = new TextBlock { Foreground = B(Danger), TextWrapping = TextWrapping.Wrap, IsVisible = false };
 
+        // what the PC's config decides (%ProgramData%\MOAVI Desk) is shown, not changed here
+        void Lock(string setting, params Control[] controls)
+        {
+            if (!config.IsManaged(setting)) { return; }
+            foreach (var c in controls) { c.IsEnabled = false; }
+        }
+        Lock(nameof(AppConfig.ServerUrl), txtHost, txtPort, chkHttps);
+        Lock(nameof(AppConfig.IgnoreCertificateErrors), chkCert);
+        Lock(nameof(AppConfig.Protocol), cmbProtocol);
+        Lock(nameof(AppConfig.TerminalKey), txtKey);
+        Lock(nameof(AppConfig.Kiosk), chkKiosk);
+        Lock(nameof(AppConfig.KioskForceFullScreen), chkKioskFull);
+        Lock(nameof(AppConfig.KioskAdminPasswordHash), txtPass, txtPass2);
+        var lblManaged = new TextBlock
+        {
+            Text = L("MoaviManagedNote"),
+            Foreground = B(Warn),
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            IsVisible = config.Managed.Count > 0
+        };
+
         var btnSave = PrimaryButton(L("Save"));
         var btnCancel = GhostButton(L("Cancel"));
         btnCancel.Click += (_, _) => window.Close();
@@ -174,6 +196,7 @@ internal static class SettingsWindow
                 Spacing = 8,
                 Children =
                 {
+                    lblManaged,
                     Section(L("MoaviServer").ToUpperInvariant()),
                     new Grid
                     {

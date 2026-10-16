@@ -4,6 +4,10 @@
 #   ./installer/build.ps1 -VirtViewerMsi virt-viewer-x64-11.0-1.0.msi -Version 0.9.1
 #
 # Output: artifacts/publish/win-x64/moavi-desk.exe and artifacts/msi/MOAVI-Desk-<version>-x64.msi
+#
+# The MSI takes these public properties for an unattended install on a room's PCs (README, Package.wxs):
+#   msiexec /i MOAVI-Desk-<version>-x64.msi /qn SERVER=desk.example.com PORT=443 HTTPS=1 KIOSK=1 ENROLL_CODE=MDE-XXXX-XXXX-XXXX
+#   (+ KIOSK_PASSWORD_HASH=<iterations.salt.hash>) -> %ProgramData%\MOAVI Desk\config and ...\terminal
 param(
     [string]$Version,
     [string]$VirtViewerMsi,

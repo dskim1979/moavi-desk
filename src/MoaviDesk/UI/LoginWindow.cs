@@ -56,6 +56,18 @@ internal static class LoginWindow
         statusText.Margin = new Thickness(8, 0, 0, 0);
         statusDot.VerticalAlignment = VerticalAlignment.Top;
         statusDot.Margin = new Thickness(0, 4, 0, 0);
+        // a LAB PC enrolling with its installer's code (Services/Enrollment.cs)
+        var enrollText = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        void ShowEnrollment()
+        {
+            enrollText.IsVisible = Enrollment.Status is not null;
+            enrollText.Text = Enrollment.Status;
+            enrollText.Foreground = B(Enrollment.IsProblem ? Warn : Muted);
+        }
+        ShowEnrollment();
+        Enrollment.Changed += ShowEnrollment;
+        window.Closed += (_, _) => Enrollment.Changed -= ShowEnrollment;
+
         var txtUser = UiHelper.TextBox(config.LastUser, L("Username"), AppIcons.Account);
         var txtPassword = UiHelper.TextBox(watermark: L("Password"), iconData: AppIcons.Lock);
         txtPassword.PasswordChar = '●';
@@ -140,6 +152,7 @@ internal static class LoginWindow
                     header,
                     new TextBlock { Text = L("MoaviSignInTitle"), Foreground = B(Muted), Margin = new Thickness(0, 4, 0, 6) },
                     statusRow,
+                    enrollText,
                     Label(L("Username")), txtUser,
                     Label(L("Password")), txtPassword,
                     otpLabel, txtOtp,
@@ -203,6 +216,7 @@ internal static class LoginWindow
         {
             if (!await KioskGuard.CheckAsync(window, config)) { return; }
             await SettingsWindow.Create(config).ShowDialog(window);
+            Enrollment.Start(config);
             await Probe();
         };
 
@@ -336,6 +350,7 @@ internal static class LoginWindow
             if (string.IsNullOrEmpty(txtUser.Text)) { txtUser.Focus(); }
             else { txtPassword.Focus(); }
             probeTimer.Start();
+            Enrollment.Start(config);
             await Probe();
         };
 
