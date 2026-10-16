@@ -4,7 +4,7 @@ virt-viewer for Windows (remote-viewer) — bundled with MOAVI Desk
 This folder holds an unmodified copy of virt-viewer for Windows, unpacked from the official
 installer published by the virt-viewer project:
 
-    https://releases.pagure.org/virt-viewer/virt-viewer-x64-11.0-1.0.msi
+    https://gitlab.com/virt-viewer/virt-viewer/-/releases/v11.0/downloads/virt-viewer-x64-11.0-1.0.msi
 
 virt-viewer is licensed under the GNU General Public License, version 2 or later (GPLv2+).
 The libraries next to it (GTK, GLib, spice-gtk, libusb, usbredir, gstreamer and others from the
@@ -18,7 +18,7 @@ Source code
 -----------
 The complete corresponding source for this virt-viewer release is available from
 
-    https://releases.pagure.org/virt-viewer/              (virt-viewer-11.0.tar.xz)
+    https://gitlab.com/virt-viewer/virt-viewer/-/releases/v11.0/downloads/virt-viewer-11.0.tar.xz
     https://gitlab.com/virt-viewer/virt-viewer            (tag v11.0)
     https://gitlab.com/spice/spice-gtk                    (spice-gtk)
     https://github.com/msys2/MINGW-packages               (build recipes for the bundled libraries)

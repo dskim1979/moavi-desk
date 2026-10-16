@@ -80,7 +80,7 @@ powershell -ExecutionPolicy Bypass -File installer/build.ps1 -VirtViewerMsi virt
 
 | 구성 요소 | 받는 곳 | 라이선스 | MSI에 넣는 방법 |
 |---|---|---|---|
-| virt-viewer 11.0 (remote-viewer) x64 | https://releases.pagure.org/virt-viewer/virt-viewer-x64-11.0-1.0.msi (공식 Windows 설치 파일, 프로젝트: https://gitlab.com/virt-viewer/virt-viewer) | GPLv2 이상. 같이 들어 있는 GTK, GLib, spice-gtk, usbredir, libusb, GStreamer 등은 LGPL 및 기타 오픈소스 | 수정하지 않고 `virt-viewer\` 폴더에 별도 기능으로 설치. `virt-viewer\SOURCE.txt`(원본: `installer/virt-viewer/SOURCE.txt`)에 소스 위치와 서면 소스 제공 약속을 둠 |
+| virt-viewer 11.0 (remote-viewer) x64 | https://gitlab.com/virt-viewer/virt-viewer/-/releases/v11.0/downloads/virt-viewer-x64-11.0-1.0.msi (공식 Windows 설치 파일, 프로젝트: https://gitlab.com/virt-viewer/virt-viewer) | GPLv2 이상. 같이 들어 있는 GTK, GLib, spice-gtk, usbredir, libusb, GStreamer 등은 LGPL 및 기타 오픈소스 | 수정하지 않고 `virt-viewer\` 폴더에 별도 기능으로 설치. `virt-viewer\SOURCE.txt`(원본: `installer/virt-viewer/SOURCE.txt`)에 소스 위치와 서면 소스 제공 약속을 둠 |
 | UsbDk 1.0.22 x64 | https://github.com/daynix/UsbDk/releases (`UsbDk_1.0.22_x64.msi`) | Apache-2.0 | 넣지 않음. 드라이버라 별도 MSI로 설치해야 하며, SPICE USB 리디렉션을 쓰는 PC에만 필요 |
 
 - MOAVI Desk는 remote-viewer를 별도 프로세스로 실행만 하고 링크하지 않습니다. 그래서 GPL/LGPL 구성 요소는
