@@ -27,5 +27,7 @@
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="YamlDotNet" />
+    <!-- ServiceBase: "moavi-desk.exe agent mode" runs as the MOAVI Desk Agent service (Services/Agent.cs) -->
+    <PackageReference Include="System.ServiceProcess.ServiceController" />
   </ItemGroup>
 </Project>

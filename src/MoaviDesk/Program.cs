@@ -6,6 +6,7 @@
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Themes.Fluent;
 using MoaviDesk.Config;
+using MoaviDesk.Services;
 using MoaviDesk.UI;
 
 namespace MoaviDesk;
@@ -17,6 +18,8 @@ internal sealed class Program
     {
         // the installer writing the PC's settings (msiexec … SERVER=… ENROLL_CODE=…): no window
         if (args.Contains(MachineSetup.Switch)) { return MachineSetup.Run(args); }
+        // the MOAVI Desk Agent service (enrolment, heartbeat, kiosk key): no window
+        if (args.Contains(Agent.Switch)) { return Agent.Run(args); }
 
         var config = AppConfigManager.Load();
         ApplyLanguage(config.Language);

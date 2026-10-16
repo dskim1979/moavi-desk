@@ -5,6 +5,7 @@
 
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.Text.Json;
 using MoaviDesk.Services;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -22,6 +23,10 @@ internal sealed class MachineSettings
 {
     public string? ServerUrl { get; set; }
     public bool? IgnoreCertificateErrors { get; set; }
+
+    /// <summary>SHA-256 of the server's certificate (hex): a private certificate is trusted by this pin.</summary>
+    public string? ServerCertSha256 { get; set; }
+
     public string? Protocol { get; set; }
     public bool? Kiosk { get; set; }
     public string? KioskAdminPasswordHash { get; set; }
@@ -30,25 +35,37 @@ internal sealed class MachineSettings
 }
 
 /// <summary>
-/// The LAB terminal's enrolment beside it: <c>%ProgramData%\MOAVI Desk\terminal</c>. The installer
-/// puts the enrolment code here; the client (running as the signed-in Windows user, who may write
-/// this one file) keeps its poll token while it waits and then the kiosk key it got.
+/// The agent's secrets: <c>%ProgramData%\MOAVI Desk\agent</c>, readable by SYSTEM and administrators only.
+/// The MOAVI Desk Agent (a service, SYSTEM) keeps the enrolment code from the installer and the
+/// agent token the engine gave it here.
+/// </summary>
+internal sealed class AgentSecrets
+{
+    public string? EnrollCode { get; set; }
+    public string? AgentToken { get; set; }
+}
+
+/// <summary>
+/// What the agent tells the client: <c>%ProgramData%\MOAVI Desk\terminal</c>, written by the agent,
+/// readable by users. The kiosk key the engine handed over on approval, and where the PC stands.
 /// </summary>
 internal sealed class TerminalState
 {
-    /// <summary>The installer's ENROLL_CODE; cleared once the key is here.</summary>
-    public string? EnrollCode { get; set; }
-
-    /// <summary>The engine's poll token while an admin has not approved this PC yet.</summary>
-    public string? EnrollToken { get; set; }
-
-    /// <summary>The kiosk key handed over on approval (<c>mdt_…</c>).</summary>
+    /// <summary>The kiosk key (<c>mdt_…</c>) the agent got once an admin approved this PC.</summary>
     public string? TerminalKey { get; set; }
 
     public string? TerminalId { get; set; }
     public string? TerminalName { get; set; }
     public string? Lab { get; set; }
-    public string? EnrolledAt { get; set; }
+
+    /// <summary>pending | approved | rejected (the engine's), or empty before enrolment.</summary>
+    public string? State { get; set; }
+
+    /// <summary>When the agent last reached the engine.</summary>
+    public string? LastContact { get; set; }
+
+    /// <summary>Why the agent could not (a refused code, no network …); null when all is well.</summary>
+    public string? Problem { get; set; }
 }
 
 internal static class MachineConfig
@@ -57,6 +74,7 @@ internal static class MachineConfig
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "MOAVI Desk");
 
     public static readonly string ConfigFile = SystemIO.Path.Combine(Dir, "config");
+    public static readonly string AgentFile = SystemIO.Path.Combine(Dir, "agent");
     public static readonly string TerminalFile = SystemIO.Path.Combine(Dir, "terminal");
 
     private static readonly ISerializer Serializer = new SerializerBuilder()
@@ -73,16 +91,9 @@ internal static class MachineConfig
 
     public static TerminalState LoadTerminal() => Read<TerminalState>(TerminalFile) ?? new TerminalState();
 
-    /// <summary>Writes the terminal file in place (users may write it, not make files beside it).</summary>
-    public static bool SaveTerminal(TerminalState state)
-    {
-        try
-        {
-            File.WriteAllText(TerminalFile, Serializer.Serialize(state));
-            return true;
-        }
-        catch { return false; }
-    }
+    public static AgentSecrets LoadAgent() => Read<AgentSecrets>(AgentFile) ?? new AgentSecrets();
+
+    public static void Write(string path, object o) => File.WriteAllText(path, Serializer.Serialize(o));
 
     /// <summary>
     /// Lays the PC's settings and the terminal's key over the user's <paramref name="config"/> and
@@ -94,17 +105,31 @@ internal static class MachineConfig
         {
             Set(config, nameof(AppConfig.ServerUrl), m.ServerUrl);
             Set(config, nameof(AppConfig.IgnoreCertificateErrors), m.IgnoreCertificateErrors);
+            Set(config, nameof(AppConfig.ServerCertSha256), m.ServerCertSha256);
             Set(config, nameof(AppConfig.Protocol), m.Protocol);
             Set(config, nameof(AppConfig.Kiosk), m.Kiosk);
             Set(config, nameof(AppConfig.KioskAdminPasswordHash), m.KioskAdminPasswordHash);
             Set(config, nameof(AppConfig.KioskForceFullScreen), m.KioskForceFullScreen);
             Set(config, nameof(AppConfig.KioskLoginBackground), m.KioskLoginBackground);
         }
+        Refresh(config);
+    }
+
+    /// <summary>Takes up a kiosk key the agent got since; returns the terminal file.</summary>
+    public static TerminalState Refresh(AppConfig config)
+    {
         var terminal = LoadTerminal();
         if (!string.IsNullOrEmpty(terminal.TerminalKey))
         {
             Set(config, nameof(AppConfig.TerminalKey), terminal.TerminalKey);
         }
+        else if (config.IsManaged(nameof(AppConfig.TerminalKey)))
+        {
+            // the agent dropped it (the terminal was removed on the server)
+            config.TerminalKey = string.Empty;
+            config.Managed.Remove(nameof(AppConfig.TerminalKey));
+        }
+        return terminal;
     }
 
     internal static void Set(AppConfig config, string name, object? value)
@@ -119,24 +144,24 @@ internal static class MachineConfig
         try { return File.Exists(path) ? Deserializer.Deserialize<T>(File.ReadAllText(path)) : null; }
         catch { return null; }
     }
-
-    internal static string Serialize(object o) => Serializer.Serialize(o);
 }
 
 /// <summary>
-/// <c>moavi-desk.exe --machine-config …</c>: what the MSI runs (as SYSTEM, after the files are in)
-/// to write the PC's settings from its public properties, and <c>--machine-config --remove</c> on
-/// uninstall. Only the values given are changed; an upgrade without them keeps what is there.
+/// <c>moavi-desk.exe --machine-config …</c>: what the MSI runs (as SYSTEM, after the files are in, before
+/// the agent service starts) to write the PC's settings, and <c>--machine-config --remove</c> on uninstall.
 /// <code>
-///   --server &lt;address or URL&gt;  --port &lt;n&gt;  --https 0|1  --kiosk 0|1
-///   --enroll-code MDE-…  --kiosk-password-hash &lt;iterations.salt.hash&gt;
+///   --server &lt;address or URL&gt;  --port &lt;n&gt;  --https 0|1  --kiosk 0|1  --cert-sha256 &lt;hex&gt;
+///   --enroll-code MDE-…  (or --enroll-token)  --kiosk-password-hash &lt;iterations.salt.hash&gt;
+///   --msi &lt;path of the .msi&gt;   reads moavi-desk-enroll.json beside it for what the command line leaves out
 /// </code>
-/// Exit code 0 when written, 1 otherwise (the installation then rolls back); the reason goes to
+/// Only the values given change; an upgrade without them keeps what is there. Exit code 0 when
+/// written, 1 otherwise (the installation then rolls back); the reason goes to
 /// <c>%ProgramData%\MOAVI Desk\setup.log</c>.
 /// </summary>
 internal static class MachineSetup
 {
     public const string Switch = "--machine-config";
+    public const string EnrollFileName = "moavi-desk-enroll.json";
 
     public static int Run(string[] args)
     {
@@ -148,6 +173,12 @@ internal static class MachineSetup
                 if (Directory.Exists(MachineConfig.Dir)) { Directory.Delete(MachineConfig.Dir, recursive: true); }
                 return 0;
             }
+            var fromFile = FromEnrollFile(Value(a, "--msi"));
+            foreach (var (k, v) in fromFile)
+            {
+                if (Value(a, k) is null) { a[k] = v; }    // the command line wins
+            }
+
             Directory.CreateDirectory(MachineConfig.Dir);
             if (OperatingSystem.IsWindows()) { LockDown(); }
 
@@ -159,18 +190,26 @@ internal static class MachineSetup
                 if (hash.Split('.').Length != 3) { throw new ArgumentException("KIOSK_PASSWORD_HASH is not iterations.salt.hash"); }
                 m.KioskAdminPasswordHash = hash;
             }
-            File.WriteAllText(MachineConfig.ConfigFile, MachineConfig.Serialize(m));
-
-            var t = MachineConfig.LoadTerminal();
-            // a PC that holds its key already is not enrolled again by a repair or an upgrade
-            if (Value(a, "--enroll-code") is { } code && string.IsNullOrEmpty(t.TerminalKey))
+            if (Value(a, "--cert-sha256") is { } pin)
             {
-                t.EnrollCode = code;
-                t.EnrollToken = null;
+                pin = pin.Replace(":", "", StringComparison.Ordinal).ToUpperInvariant();
+                if (pin.Length != 64 || !pin.All(Uri.IsHexDigit)) { throw new ArgumentException("SERVER_CERT_SHA256 is not 64 hex digits"); }
+                m.ServerCertSha256 = pin;
             }
-            File.WriteAllText(MachineConfig.TerminalFile, MachineConfig.Serialize(t));
-            if (OperatingSystem.IsWindows()) { OpenTerminalFile(); }
-            Log("written: " + string.Join(' ', a.Keys));
+            MachineConfig.Write(MachineConfig.ConfigFile, m);
+
+            var agent = MachineConfig.LoadAgent();
+            var terminal = MachineConfig.LoadTerminal();
+            // a PC that holds its key already is not enrolled again by a repair or an upgrade
+            if ((Value(a, "--enroll-code") ?? Value(a, "--enroll-token")) is { } code && string.IsNullOrEmpty(terminal.TerminalKey))
+            {
+                agent.EnrollCode = code;
+                agent.AgentToken = null;
+            }
+            MachineConfig.Write(MachineConfig.AgentFile, agent);
+            if (OperatingSystem.IsWindows()) { AdminsOnly(MachineConfig.AgentFile); }
+            if (!File.Exists(MachineConfig.TerminalFile)) { MachineConfig.Write(MachineConfig.TerminalFile, terminal); }
+            Log("written: " + string.Join(' ', a.Keys) + (fromFile.Count > 0 ? $" ({EnrollFileName})" : ""));
             return 0;
         }
         catch (Exception ex)
@@ -180,15 +219,64 @@ internal static class MachineSetup
         }
     }
 
+    // the MSI's short switches (Package.wxs), each followed by its value, empty or not
+    private static readonly Dictionary<string, string> Short = new(StringComparer.Ordinal)
+    {
+        ["-s"] = "--server", ["-p"] = "--port", ["-h"] = "--https", ["-k"] = "--kiosk", ["-c"] = "--enroll-code",
+        ["-t"] = "--enroll-token", ["-f"] = "--cert-sha256", ["-w"] = "--kiosk-password-hash", ["-m"] = "--msi",
+    };
+
     private static Dictionary<string, string> Parse(string[] args)
     {
         var a = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         for (var i = 0; i < args.Length; i++)
         {
+            if (Short.TryGetValue(args[i], out var longName))
+            {
+                a[longName] = i + 1 < args.Length ? args[++i].Trim() : "";
+                continue;
+            }
             var name = args[i];
             if (!name.StartsWith("--", StringComparison.Ordinal) || name == Switch) { continue; }
             var next = i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal) ? args[++i] : "";
             a[name] = next.Trim();
+        }
+        return a;
+    }
+
+    /// <summary>
+    /// moavi-desk-enroll.json beside the MSI (the installer's OriginalDatabase), as the switches above:
+    /// {"server", "port", "https", "enroll_code" | "enroll_token", "kiosk", "server_cert_sha256", "kiosk_password_hash"}.
+    /// </summary>
+    internal static Dictionary<string, string> FromEnrollFile(string? msiPath)
+    {
+        var a = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(msiPath)) { return a; }
+        var path = SystemIO.Path.Combine(SystemIO.Path.GetDirectoryName(msiPath) ?? "", EnrollFileName);
+        if (!File.Exists(path)) { return a; }
+        using var doc = JsonDocument.Parse(File.ReadAllText(path));
+        foreach (var p in doc.RootElement.EnumerateObject())
+        {
+            var key = p.Name.ToLowerInvariant() switch
+            {
+                "server" => "--server",
+                "port" => "--port",
+                "https" => "--https",
+                "kiosk" => "--kiosk",
+                "enroll_code" or "enroll_token" => "--enroll-code",
+                "server_cert_sha256" => "--cert-sha256",
+                "kiosk_password_hash" => "--kiosk-password-hash",
+                _ => null
+            };
+            if (key is null) { continue; }
+            a[key] = p.Value.ValueKind switch
+            {
+                JsonValueKind.True => "1",
+                JsonValueKind.False => "0",
+                JsonValueKind.Number => p.Value.GetRawText(),
+                JsonValueKind.String => p.Value.GetString() ?? "",
+                _ => ""
+            };
         }
         return a;
     }
@@ -240,28 +328,28 @@ internal static class MachineSetup
         new DirectoryInfo(MachineConfig.Dir).SetAccessControl(sec);
     }
 
-    // the terminal file: users may also write it (the client keeps its token and key there), not delete it
+    // the agent's file (enrolment code, agent token): SYSTEM and administrators only
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
-    private static void OpenTerminalFile()
+    private static void AdminsOnly(string path)
     {
-        var file = new FileInfo(MachineConfig.TerminalFile);
-        var sec = file.GetAccessControl();
-        sec.AddAccessRule(new FileSystemAccessRule(Sid(WellKnownSidType.BuiltinUsersSid),
-                                                   FileSystemRights.Read | FileSystemRights.Write | FileSystemRights.Synchronize,
-                                                   AccessControlType.Allow));
-        file.SetAccessControl(sec);
+        var sec = new FileSecurity();
+        sec.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        sec.AddAccessRule(new FileSystemAccessRule(Sid(WellKnownSidType.LocalSystemSid), FileSystemRights.FullControl, AccessControlType.Allow));
+        sec.AddAccessRule(new FileSystemAccessRule(Sid(WellKnownSidType.BuiltinAdministratorsSid), FileSystemRights.FullControl, AccessControlType.Allow));
+        new FileInfo(path).SetAccessControl(sec);
     }
 
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     private static SecurityIdentifier Sid(WellKnownSidType type) => new(type, null);
 
-    private static void Log(string line)
+    internal static void Log(string line, string file = "setup.log")
     {
         try
         {
             Directory.CreateDirectory(MachineConfig.Dir);
-            File.AppendAllText(SystemIO.Path.Combine(MachineConfig.Dir, "setup.log"),
-                               $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {line}{Environment.NewLine}");
+            var path = SystemIO.Path.Combine(MachineConfig.Dir, file);
+            if (File.Exists(path) && new FileInfo(path).Length > 1_000_000) { File.Delete(path); }
+            File.AppendAllText(path, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {line}{Environment.NewLine}");
         }
         catch { }
     }

@@ -19,24 +19,30 @@
     <Property Id="ARPURLINFOABOUT" Value="https://www.makussystems.co.kr/" />
     <Property Id="ARPHELPLINK" Value="https://support.makussystems.co.kr/" />
 
-    <!-- Unattended install for a room's PCs (README "실습실 PC에 한꺼번에 설치"):
+    <!-- Unattended install for a room's PCs (README "실습실 PC에 설치하는 세 가지 방법"):
            msiexec /i MOAVI-Desk-<version>-x64.msi /qn SERVER=desk.example.com PORT=443 HTTPS=1 KIOSK=1 ENROLL_CODE=MDE-XXXX-XXXX-XXXX
          The values go to the PC's shared config, %ProgramData%\MOAVI Desk\config, which wins over each user's
-         own settings and is locked in Settings; ENROLL_CODE goes to %ProgramData%\MOAVI Desk\terminal, from
-         which the client enrols on its first start. A property left out keeps what the PC has (upgrades). -->
+         own settings and is locked in Settings; the code goes to %ProgramData%\MOAVI Desk\agent (SYSTEM only), from
+         which the MOAVI Desk Agent service enrols the PC. moavi-desk-enroll.json beside the .msi fills in what the
+         command line leaves out. A property left out keeps what the PC has (upgrades). -->
     <Property Id="SERVER" Secure="yes" />
     <Property Id="PORT" Secure="yes" />
     <Property Id="HTTPS" Secure="yes" />
     <Property Id="KIOSK" Secure="yes" />
     <Property Id="ENROLL_CODE" Secure="yes" Hidden="yes" />
+    <!-- the same as ENROLL_CODE: the token in a file from the portal's "실습실 PC로 설치" -->
+    <Property Id="ENROLL_TOKEN" Secure="yes" Hidden="yes" />
+    <!-- SHA-256 of a private server certificate (hex): the client and the agent trust that one, no other -->
+    <Property Id="SERVER_CERT_SHA256" Secure="yes" />
     <!-- the kiosk admin password as moavi-desk keeps it (PBKDF2 iterations.salt.hash), e.g. from the console's install command -->
     <Property Id="KIOSK_PASSWORD_HASH" Secure="yes" Hidden="yes" />
 
-    <!-- moavi-desk.exe writes them (Config/MachineConfig.cs, MachineSetup) as SYSTEM after the files are in;
-         a failure rolls the installation back -->
+    <!-- moavi-desk.exe writes them (Config/MachineConfig.cs, MachineSetup; the short switches keep the command
+         within the 255 characters of the CustomAction table) as SYSTEM after the files are in and before the
+         agent service starts; a failure rolls the installation back -->
     <CustomAction Id="WriteMachineConfig"
                   FileRef="moavi_desk.exe"
-                  ExeCommand="--machine-config --server &quot;[SERVER]&quot; --port &quot;[PORT]&quot; --https &quot;[HTTPS]&quot; --kiosk &quot;[KIOSK]&quot; --enroll-code &quot;[ENROLL_CODE]&quot; --kiosk-password-hash &quot;[KIOSK_PASSWORD_HASH]&quot;"
+                  ExeCommand="--machine-config -s &quot;[SERVER]&quot; -p &quot;[PORT]&quot; -h &quot;[HTTPS]&quot; -k &quot;[KIOSK]&quot; -c &quot;[ENROLL_CODE]&quot; -t &quot;[ENROLL_TOKEN]&quot; -f &quot;[SERVER_CERT_SHA256]&quot; -w &quot;[KIOSK_PASSWORD_HASH]&quot; -m &quot;[OriginalDatabase]&quot;"
                   Execute="deferred"
                   Impersonate="no"
                   Return="check" />
@@ -48,8 +54,8 @@
                   Impersonate="no"
                   Return="ignore" />
     <InstallExecuteSequence>
-      <Custom Action="WriteMachineConfig" After="InstallFiles"
-              Condition="NOT REMOVE~=&quot;ALL&quot; AND (SERVER OR PORT OR HTTPS OR KIOSK OR ENROLL_CODE OR KIOSK_PASSWORD_HASH)" />
+      <!-- every install and upgrade: it also reads moavi-desk-enroll.json and keeps the folder's permissions -->
+      <Custom Action="WriteMachineConfig" After="InstallFiles" Condition="NOT REMOVE~=&quot;ALL&quot;" />
       <Custom Action="RemoveMachineConfig" Before="RemoveFiles"
               Condition="REMOVE~=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
     </InstallExecuteSequence>
@@ -66,6 +72,19 @@
     <Feature Id="Main" Title="MOAVI Desk" AllowAbsent="no">
       <Component Directory="INSTALLFOLDER">
         <File Id="moavi_desk.exe" Source="$(PublishDir)moavi-desk.exe" KeyPath="yes" />
+        <!-- the MOAVI Desk Agent (Services/Agent.cs): enrols a LAB PC, sends heartbeats, takes the kiosk key.
+             Runs from boot as LocalSystem; without an enrolment code it only waits. Stopped and removed with the product. -->
+        <ServiceInstall Id="MoaviDeskAgent"
+                        Name="MoaviDeskAgent"
+                        DisplayName="MOAVI Desk Agent"
+                        Description="MOAVI Desk 실습실 PC 등록 · 하트비트 · 키오스크 키 수신"
+                        Type="ownProcess"
+                        Start="auto"
+                        Account="LocalSystem"
+                        ErrorControl="normal"
+                        Arguments="--agent"
+                        Vital="yes" />
+        <ServiceControl Id="MoaviDeskAgent" Name="MoaviDeskAgent" Start="install" Stop="both" Remove="uninstall" Wait="yes" />
       </Component>
       <Component Directory="INSTALLFOLDER">
         <File Source="$(RepoDir)LICENSE.md" />

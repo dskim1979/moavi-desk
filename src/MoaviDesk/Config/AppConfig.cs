@@ -52,6 +52,12 @@ internal class AppConfig
     /// <summary>Skip TLS certificate checks against <see cref="ServerUrl"/> (test servers only).</summary>
     public bool IgnoreCertificateErrors { get; set; } = false;
 
+    /// <summary>
+    /// SHA-256 of the server's certificate (hex), set by the PC's config: a private certificate with
+    /// this fingerprint is trusted, any other is not.
+    /// </summary>
+    public string ServerCertSha256 { get; set; } = string.Empty;
+
     // Viewer
 
     /// <summary>Path to remote-viewer (virt-viewer) for SPICE and VNC; empty = look for it.</summary>

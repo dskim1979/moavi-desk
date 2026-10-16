@@ -74,7 +74,7 @@ internal static class SettingsWindow
             btnTest.IsEnabled = false;
             lblTest.Text = L("MoaviServerChecking");
             lblTest.Foreground = B(Muted);
-            var (ok, ms, why) = await DeskApi.ProbeAsync(url, chkCert.IsChecked == true);
+            var (ok, ms, why) = await DeskApi.ProbeAsync(url, chkCert.IsChecked == true, certSha256: config.ServerCertSha256);
             lblTest.Text = ok ? string.Format(L("MoaviTestOk"), ms) : string.Format(L("MoaviTestFail"), why);
             lblTest.Foreground = B(ok ? Ok : Danger);
             btnTest.IsEnabled = true;
@@ -121,6 +121,7 @@ internal static class SettingsWindow
         }
         Lock(nameof(AppConfig.ServerUrl), txtHost, txtPort, chkHttps);
         Lock(nameof(AppConfig.IgnoreCertificateErrors), chkCert);
+        if (config.IsManaged(nameof(AppConfig.ServerCertSha256))) { chkCert.IsEnabled = false; }
         Lock(nameof(AppConfig.Protocol), cmbProtocol);
         Lock(nameof(AppConfig.TerminalKey), txtKey);
         Lock(nameof(AppConfig.Kiosk), chkKiosk);

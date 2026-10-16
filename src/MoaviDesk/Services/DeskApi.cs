@@ -60,7 +60,7 @@ internal sealed class EnrollAnswer
     public string? Key { get; set; }
     public EnrollRef? Lab { get; set; }
     public EnrollRef? Terminal { get; set; }
-    [JsonPropertyName("poll_seconds")] public int PollSeconds { get; set; } = 30;
+    [JsonPropertyName("heartbeat_seconds")] public int HeartbeatSeconds { get; set; } = 120;
 }
 
 internal sealed class EnrollRef
@@ -84,6 +84,7 @@ internal enum LoginResult { Ok, SecondFactor, Invalid, Locked, Network, Other }
 internal sealed class DeskApi : IDisposable
 {
     public const string TerminalKeyHeader = "X-Terminal-Key";
+    public const string AgentTokenHeader = "X-Agent-Token";
 
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
 
@@ -95,18 +96,33 @@ internal sealed class DeskApi : IDisposable
     public string Username { get; private set; } = "";
     public string LastError { get; private set; } = "";
 
-    public DeskApi(string serverUrl, bool ignoreCertificateErrors)
+    public DeskApi(string serverUrl, bool ignoreCertificateErrors, string? certSha256 = null)
     {
         BaseUri = NormalizeServer(serverUrl);
         IgnoreCertificateErrors = ignoreCertificateErrors;
         var handler = new HttpClientHandler { CookieContainer = _cookies, UseCookies = true };
-        if (ignoreCertificateErrors)
-        {
-            handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-        }
+        TrustServer(handler, ignoreCertificateErrors, certSha256);
         _http = new HttpClient(handler) { BaseAddress = BaseUri, Timeout = TimeSpan.FromSeconds(30) };
         _http.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
         _http.DefaultRequestHeaders.UserAgent.ParseAdd($"MOAVI-Desk-Client/{AppVersion}");
+    }
+
+    /// <summary>
+    /// The server's certificate: checked as usual; with a pin (SHA-256 of the certificate, from the PC's
+    /// config) a private certificate is trusted when it is that one, and no other is, chain or not.
+    /// </summary>
+    public static void TrustServer(HttpClientHandler handler, bool ignoreCertificateErrors, string? certSha256)
+    {
+        var pin = (certSha256 ?? "").Replace(":", "", StringComparison.Ordinal).ToUpperInvariant();
+        if (pin.Length > 0)
+        {
+            handler.ServerCertificateCustomValidationCallback = (_, cert, _, _) =>
+                cert is not null && Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(cert.RawData)) == pin;
+        }
+        else if (ignoreCertificateErrors)
+        {
+            handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+        }
     }
 
     public static string AppVersion
@@ -147,14 +163,11 @@ internal sealed class DeskApi : IDisposable
     /// /api/auth/check; returns the round trip, or why not.
     /// </summary>
     public static async Task<(bool Ok, long Ms, string Error)> ProbeAsync(string serverUrl, bool ignoreCertificateErrors,
-                                                                         int timeoutSeconds = 6)
+                                                                         int timeoutSeconds = 6, string? certSha256 = null)
     {
         if (string.IsNullOrWhiteSpace(serverUrl)) { return (false, 0, ""); }
         var handler = new HttpClientHandler();
-        if (ignoreCertificateErrors)
-        {
-            handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-        }
+        TrustServer(handler, ignoreCertificateErrors, certSha256);
         using var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(timeoutSeconds) };
         http.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -260,18 +273,19 @@ internal sealed class DeskApi : IDisposable
     }
 
     /// <summary>
-    /// A room's PC enrols with its installer's code, no one signed in (POST /api/vlab/terminals/enroll):
-    /// it gets a poll token and its state (pending, or approved when the code approves at once).
+    /// The agent enrols the PC with its installer's code, no one signed in (POST /api/vlab/terminals/enroll):
+    /// it gets its agent token and the PC's state (pending, or approved when the code approves at once).
     /// </summary>
-    public async Task<EnrollAnswer> EnrollAsync(string mac, string name, string code)
-        => (await SendAsync(HttpMethod.Post, "api/vlab/terminals/enroll", new { mac, name, code })).Deserialize<EnrollAnswer>(Json)!;
+    public async Task<EnrollAnswer> EnrollAsync(string mac, string name, string code, object info)
+        => (await SendAsync(HttpMethod.Post, "api/vlab/terminals/enroll", new { mac, name, code, info })).Deserialize<EnrollAnswer>(Json)!;
 
     /// <summary>
-    /// The enrolled PC asks again (POST /api/vlab/terminals/enroll/status): pending, or approved with the
-    /// kiosk key, which the engine hands out this once.
+    /// The agent's heartbeat (POST /api/vlab/terminals/heartbeat, X-Agent-Token): the PC's state and LAB,
+    /// and once it is approved the kiosk key, which the engine hands out this once.
     /// </summary>
-    public async Task<EnrollAnswer> EnrollStatusAsync(string token)
-        => (await SendAsync(HttpMethod.Post, "api/vlab/terminals/enroll/status", new { token })).Deserialize<EnrollAnswer>(Json)!;
+    public async Task<EnrollAnswer> HeartbeatAsync(string token, object info)
+        => (await SendAsync(HttpMethod.Post, "api/vlab/terminals/heartbeat", new { info },
+                            new() { [AgentTokenHeader] = token })).Deserialize<EnrollAnswer>(Json)!;
 
     /// <summary>LAB kiosk: the session running in this terminal's room and a desktop of it for the user.</summary>
     public async Task<(string DesktopId, string DesktopName, string Lab)> KioskStartAsync(string terminalKey)
@@ -283,17 +297,31 @@ internal sealed class DeskApi : IDisposable
         return (Str(desk, "id")!, Str(desk, "name") ?? "", lab);
     }
 
-    /// <summary>The MAC of the first up, non-loopback network adapter, as aa:bb:cc:dd:ee:ff.</summary>
-    public static string? PrimaryMac()
+    /// <summary>The MAC of the adapter on the default route (else the first up one), as aa:bb:cc:dd:ee:ff.</summary>
+    public static string? PrimaryMac() => PrimaryNic().Mac;
+
+    /// <summary>
+    /// The adapter the PC reaches the network through: up, not loopback or tunnel, with a default gateway
+    /// first (wired before wireless); its MAC, IPv4 address and every up adapter's MAC.
+    /// </summary>
+    public static (string? Mac, string? Ip, string[] AllMacs) PrimaryNic()
     {
-        var nic = NetworkInterface.GetAllNetworkInterfaces()
-                                  .Where(n => n.OperationalStatus == OperationalStatus.Up
-                                              && n.NetworkInterfaceType is not NetworkInterfaceType.Loopback
-                                                                         and not NetworkInterfaceType.Tunnel)
-                                  .OrderBy(n => n.NetworkInterfaceType == NetworkInterfaceType.Ethernet ? 0 : 1)
-                                  .FirstOrDefault(n => n.GetPhysicalAddress().GetAddressBytes().Length == 6);
-        var bytes = nic?.GetPhysicalAddress().GetAddressBytes();
-        return bytes is null ? null : string.Join(":", bytes.Select(b => b.ToString("x2")));
+        static string Mac(NetworkInterface n) => string.Join(":", n.GetPhysicalAddress().GetAddressBytes().Select(b => b.ToString("x2")));
+        static bool Routed(NetworkInterface n)
+            => n.GetIPProperties().GatewayAddresses.Any(g => g.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                                                              && !g.Address.Equals(IPAddress.Any));
+        var up = NetworkInterface.GetAllNetworkInterfaces()
+                                 .Where(n => n.OperationalStatus == OperationalStatus.Up
+                                             && n.NetworkInterfaceType is not NetworkInterfaceType.Loopback
+                                                                        and not NetworkInterfaceType.Tunnel
+                                             && n.GetPhysicalAddress().GetAddressBytes().Length == 6)
+                                 .ToList();
+        var nic = up.OrderBy(n => Routed(n) ? 0 : 1)
+                    .ThenBy(n => n.NetworkInterfaceType == NetworkInterfaceType.Ethernet ? 0 : 1)
+                    .FirstOrDefault();
+        var ip = nic?.GetIPProperties().UnicastAddresses
+                    .FirstOrDefault(a => a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)?.Address.ToString();
+        return (nic is null ? null : Mac(nic), ip, up.Select(Mac).Distinct().ToArray());
     }
 
     private async Task<JsonElement> SendAsync(HttpMethod method, string path, object? body = null,

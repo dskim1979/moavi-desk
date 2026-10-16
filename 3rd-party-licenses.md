@@ -9,6 +9,7 @@ MOAVI Desk 클라이언트는 [LICENSE.md](LICENSE.md)(MIT)에 따라 배포됩�
 |---|---|
 | [Avalonia](https://github.com/AvaloniaUI/Avalonia) | MIT |
 | [YamlDotNet](https://github.com/aaubry/YamlDotNet) | MIT |
+| [System.ServiceProcess.ServiceController](https://github.com/dotnet/runtime) (.NET Foundation): 에이전트 서비스 | MIT |
 | [cv4pve-vdi](https://github.com/Corsinvest/cv4pve-vdi) (Corsinvest Srl): 키오스크 잠금, 설정 저장, 화면 도우미 등 일부 코드의 출처 | MIT |
 
 ## 함께 쓰는 프로그램

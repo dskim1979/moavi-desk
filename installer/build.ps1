@@ -7,7 +7,9 @@
 #
 # The MSI takes these public properties for an unattended install on a room's PCs (README, Package.wxs):
 #   msiexec /i MOAVI-Desk-<version>-x64.msi /qn SERVER=desk.example.com PORT=443 HTTPS=1 KIOSK=1 ENROLL_CODE=MDE-XXXX-XXXX-XXXX
-#   (+ KIOSK_PASSWORD_HASH=<iterations.salt.hash>) -> %ProgramData%\MOAVI Desk\config and ...\terminal
+#   (+ ENROLL_TOKEN=, SERVER_CERT_SHA256=<hex>, KIOSK_PASSWORD_HASH=<iterations.salt.hash>; moavi-desk-enroll.json
+#   beside the .msi fills in the rest) -> %ProgramData%\MOAVI Desk\config and ...\agent; the MSI also installs the
+#   MOAVI Desk Agent service (moavi-desk.exe --agent)
 param(
     [string]$Version,
     [string]$VirtViewerMsi,

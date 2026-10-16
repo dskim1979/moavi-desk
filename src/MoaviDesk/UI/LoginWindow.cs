@@ -56,17 +56,25 @@ internal static class LoginWindow
         statusText.Margin = new Thickness(8, 0, 0, 0);
         statusDot.VerticalAlignment = VerticalAlignment.Top;
         statusDot.Margin = new Thickness(0, 4, 0, 0);
-        // a LAB PC enrolling with its installer's code (Services/Enrollment.cs)
+        // a LAB PC: what the MOAVI Desk Agent (Services/Agent.cs) wrote to %ProgramData%\MOAVI Desk\terminal,
+        // and the kiosk key it got since this window opened
         var enrollText = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap, IsVisible = false };
-        void ShowEnrollment()
+        void ShowAgent()
         {
-            enrollText.IsVisible = Enrollment.Status is not null;
-            enrollText.Text = Enrollment.Status;
-            enrollText.Foreground = B(Enrollment.IsProblem ? Warn : Muted);
+            var t = MachineConfig.Refresh(config);
+            var text = t.State switch
+            {
+                "rejected" => L("MoaviEnrollRejected"),
+                "approved" when !string.IsNullOrEmpty(t.TerminalKey) => string.Format(L("MoaviEnrollDone"), t.Lab ?? "-"),
+                "pending" or "approved" => t.Lab is { Length: > 0 } lab ? string.Format(L("MoaviEnrollPendingLab"), lab) : L("MoaviEnrollPending"),
+                _ => null
+            };
+            if (t.Problem is { Length: > 0 } problem) { text = string.Format(L("MoaviEnrollProblem"), problem); }
+            enrollText.IsVisible = text is not null;
+            enrollText.Text = text;
+            enrollText.Foreground = B(t.Problem is { Length: > 0 } || t.State == "rejected" ? Warn : Muted);
         }
-        ShowEnrollment();
-        Enrollment.Changed += ShowEnrollment;
-        window.Closed += (_, _) => Enrollment.Changed -= ShowEnrollment;
+        ShowAgent();
 
         var txtUser = UiHelper.TextBox(config.LastUser, L("Username"), AppIcons.Account);
         var txtPassword = UiHelper.TextBox(watermark: L("Password"), iconData: AppIcons.Lock);
@@ -216,7 +224,6 @@ internal static class LoginWindow
         {
             if (!await KioskGuard.CheckAsync(window, config)) { return; }
             await SettingsWindow.Create(config).ShowDialog(window);
-            Enrollment.Start(config);
             await Probe();
         };
 
@@ -224,6 +231,7 @@ internal static class LoginWindow
         {
             if (probing) { return; }
             probing = true;
+            ShowAgent();
             try
             {
                 if (string.IsNullOrWhiteSpace(config.ServerUrl))
@@ -234,7 +242,8 @@ internal static class LoginWindow
                 }
                 statusDot.Fill = B(Muted);
                 statusText.Text = L("MoaviServerChecking");
-                var (ok, _, _) = await DeskApi.ProbeAsync(config.ServerUrl, config.IgnoreCertificateErrors, timeoutSeconds: 4);
+                var (ok, _, _) = await DeskApi.ProbeAsync(config.ServerUrl, config.IgnoreCertificateErrors, timeoutSeconds: 4,
+                                                          certSha256: config.ServerCertSha256);
                 statusDot.Fill = B(ok ? Ok : Danger);
                 statusText.Text = L(ok ? "MoaviServerOnline" : "MoaviServerOffline");
             }
@@ -275,7 +284,7 @@ internal static class LoginWindow
             if (user.Length == 0 || string.IsNullOrEmpty(txtPassword.Text)) { Fail(L("MoaviErrInvalid")); return; }
 
             DeskApi api;
-            try { api = new DeskApi(server, config.IgnoreCertificateErrors); }
+            try { api = new DeskApi(server, config.IgnoreCertificateErrors, config.ServerCertSha256); }
             catch (Exception ex) { Fail(string.Format(L("MoaviErrNetwork"), ex.Message)); return; }
 
             Busy(true);
@@ -350,7 +359,6 @@ internal static class LoginWindow
             if (string.IsNullOrEmpty(txtUser.Text)) { txtUser.Focus(); }
             else { txtPassword.Focus(); }
             probeTimer.Start();
-            Enrollment.Start(config);
             await Probe();
         };
 
