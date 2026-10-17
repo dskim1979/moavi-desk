@@ -5,6 +5,11 @@
 ### 추가
 - RDP 우선 접속: 풀이 RDP를 허용하면 `.rdp` 파일을 Windows 원격 데스크톱 연결(mstsc)로 엽니다(H.264 · UDP).
   RDP 서버가 없는 Linux 데스크톱이면 SPICE · VNC로 자동 전환합니다. 설정의 접속 방식에 RDP 추가.
+- 연구자 네이티브 SSH(Warpgate): 풀이 "연구자 네이티브 SSH"를 허용하면, 데스크톱 목록을 새로 고칠 때
+  `%USERPROFILE%\.ssh\config` 의 관리 블록(BEGIN/END MOAVI)에 데스크톱별 `Host moavi-<이름>` 항목을
+  자동으로 써 넣습니다(블록 밖은 건드리지 않음). PuTTY · scp · WinSCP · VS Code Remote-SSH 로 데스크톱
+  이름만 고르면 Warpgate를 거쳐 접속됩니다(대상 IP 숨김, 세션 녹화). 공개키만 올리며 개인키는 다루지
+  않습니다. 실제 Warpgate + 클러스터에서 검증 필요(`SshConfigSync`).
 
 ## [0.9.0] - 2026-10-16
 

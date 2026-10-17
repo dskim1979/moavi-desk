@@ -43,6 +43,28 @@ internal sealed class ConnectInfo
     [JsonPropertyName("session_id")] public string SessionId { get; set; } = "";
 }
 
+/// <summary>GET /api/vlab/me/ssh-config: researcher native SSH through Warpgate. Each entry is one
+/// ~/.ssh/config Host block (User &lt;wguser&gt;:&lt;target&gt;; Warpgate is not a jump host).</summary>
+internal sealed class SshConfigResult
+{
+    public bool Enabled { get; set; }
+    [JsonPropertyName("warpgate_host")] public string? WarpgateHost { get; set; }
+    [JsonPropertyName("ssh_port")] public int SshPort { get; set; }
+    public string? Login { get; set; }
+    public List<SshConfigEntry> Entries { get; set; } = [];
+    [JsonPropertyName("managed_block")] public string ManagedBlock { get; set; } = "";
+}
+
+internal sealed class SshConfigEntry
+{
+    public string Host { get; set; } = "";
+    public string Hostname { get; set; } = "";
+    public int Port { get; set; }
+    public string User { get; set; } = "";
+    [JsonPropertyName("config_snippet")] public string ConfigSnippet { get; set; } = "";
+    [JsonPropertyName("desktop_name")] public string DesktopName { get; set; } = "";
+}
+
 /// <summary>GET /api/vlab/client/config: what the engine asks of its Windows clients.</summary>
 internal sealed class ClientConfig
 {
@@ -239,6 +261,24 @@ internal sealed class DeskApi : IDisposable
 
     public Task PowerAsync(string desktopId, string action)
         => SendAsync(HttpMethod.Post, $"api/vlab/desktops/{Uri.EscapeDataString(desktopId)}/power", new { action });
+
+    /// <summary>Researcher native SSH: the user's ~/.ssh/config entries through Warpgate, or
+    /// Enabled=false when Warpgate is off / the engine predates it.</summary>
+    public async Task<SshConfigResult> SshConfigAsync()
+    {
+        try
+        {
+            var d = await SendAsync(HttpMethod.Get, "api/vlab/me/ssh-config");
+            return d.Deserialize<SshConfigResult>(Json) ?? new SshConfigResult();
+        }
+        catch { return new SshConfigResult(); }
+    }
+
+    /// <summary>Register one of the user's OpenSSH public keys with Warpgate (POST /api/vlab/me/ssh-keys).
+    /// The engine rejects anything that is not a public key; this never sends a private key.</summary>
+    public Task AddSshKeyAsync(string label, string opensshPublicKey)
+        => SendAsync(HttpMethod.Post, "api/vlab/me/ssh-keys",
+                     new { label, openssh_public_key = opensshPublicKey });
 
     public async Task EndSessionAsync(string sessionId)
     {

@@ -133,6 +133,9 @@ internal static class MainWindow
                 cards.Children.Clear();
                 foreach (var d in list) { cards.Children.Add(Card(d)); }
                 empty.IsVisible = list.Count == 0;
+                // Researcher native SSH: keep the managed ~/.ssh/config block in sync with the
+                // Warpgate SSH-enabled desktops (no-op, and clears a stale block, when off). Best effort.
+                try { await SshConfigSync.SyncAsync(api); } catch { /* own-tools SSH is optional */ }
             }
             catch (DeskApiException ex) when (ex.Status == 401)
             {
