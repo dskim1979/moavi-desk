@@ -14,7 +14,7 @@ namespace MoaviDesk.UI;
 /// <summary>Client settings: server, viewer, protocol, LAB terminal key and kiosk lock.</summary>
 internal static class SettingsWindow
 {
-    private static readonly string[] Protocols = ["auto", "spice", "vnc"];
+    private static readonly string[] Protocols = ["auto", "rdp", "spice", "vnc"];
 
     public static Window Create(AppConfig config)
     {
@@ -94,7 +94,7 @@ internal static class SettingsWindow
 
         var cmbProtocol = new ComboBox
         {
-            ItemsSource = new[] { "Auto (SPICE → VNC)", "SPICE", "VNC" },
+            ItemsSource = new[] { "Auto (RDP → SPICE → VNC)", "RDP", "SPICE", "VNC" },
             SelectedIndex = Math.Max(0, Array.IndexOf(Protocols, config.Protocol)),
             HorizontalAlignment = HorizontalAlignment.Stretch
         };

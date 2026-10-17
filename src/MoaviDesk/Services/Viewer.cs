@@ -16,12 +16,26 @@ namespace MoaviDesk.Services;
 /// SPICE: the engine hands a .vv file (through the node's spiceproxy) → write it, launch it.
 /// VNC: the engine hands a console websocket path → bridge it to a local TCP port and point
 /// remote-viewer at that port with a vnc .vv file. The bridge lives until the viewer exits.
+/// RDP: the engine hands an .rdp file → Windows' own Remote Desktop client (mstsc) opens it; mstsc
+/// measures the link and picks UDP and H.264/AVC when the desktop offers them.
 /// </summary>
 internal static class Viewer
 {
+    /// <summary>The order the client offers: RDP (lightest on a WAN for office work), SPICE (USB,
+    /// audio), VNC. RDP needs Windows' mstsc, so another OS starts with SPICE.</summary>
+    public static readonly string[] Order = ["rdp", "spice", "vnc"];
+
+    public static List<string> Offered(IEnumerable<string> fromEngine)
+    {
+        var have = fromEngine.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return Order.Where(p => have.Contains(p) && (p != "rdp" || OperatingSystem.IsWindows())).ToList();
+    }
+
     public static async Task<(string Error, Process? Process)> OpenAsync(DeskApi api, ConnectInfo c,
                                                                        string viewerPath, string title, bool fullScreen)
     {
+        if (c.Type == "rdp") { return OpenRdp(c.Rdp ?? "", fullScreen); }
+
         var viewer = string.IsNullOrWhiteSpace(viewerPath) ? null : RemoteViewer.Resolve(viewerPath);
         if (viewer is null) { return (L("ViewerPathNotSet"), null); }
 
@@ -71,6 +85,27 @@ internal static class Viewer
                 : []
         ];
         return candidates.FirstOrDefault(File.Exists) ?? configured;
+    }
+
+    private static (string Error, Process? Process) OpenRdp(string rdp, bool fullScreen)
+    {
+        if (!OperatingSystem.IsWindows() || rdp.Length == 0) { return (L("RdpNeedsWindows"), null); }
+        if (!fullScreen) { rdp = rdp.Replace("screen mode id:i:2", "screen mode id:i:1", StringComparison.Ordinal); }
+        var file = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"moavi-{Guid.NewGuid():N}.rdp");
+        File.WriteAllText(file, rdp);
+        try
+        {
+            var mstsc = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "mstsc.exe");
+            var p = Process.Start(new ProcessStartInfo(File.Exists(mstsc) ? mstsc : "mstsc.exe", $"\"{file}\"") { UseShellExecute = false });
+            // mstsc reads the file when it starts; it holds the username and address, so it does not stay behind
+            _ = Task.Delay(TimeSpan.FromSeconds(30)).ContinueWith(_ => { try { File.Delete(file); } catch { } });
+            return p is null ? (L("ViewerLaunchFailed"), null) : (string.Empty, p);
+        }
+        catch (Exception ex)
+        {
+            try { File.Delete(file); } catch { }
+            return (ex.Message, null);
+        }
     }
 
     private static string AddFullScreen(string vv, bool fullScreen)

@@ -166,14 +166,14 @@ internal static class MainWindow
             var btnConnect = PrimaryButton(L("Connect"));
             btnConnect.IsEnabled = d.State is not ("provisioning" or "resetting" or "error");
 
+            // RDP first, SPICE / VNC as the choice (browser RDP is the portal's)
+            var offered = Viewer.Offered(d.Protocols);
+            if (offered.Count == 0) { offered.Add("vnc"); }
             var protocolBox = new ComboBox
             {
-                ItemsSource = d.Protocols.Select(p => p.ToUpperInvariant()).ToList(),
-                SelectedIndex = Math.Max(0, d.Protocols.IndexOf(
-                    config.Protocol is "spice" or "vnc" && d.Protocols.Contains(config.Protocol)
-                        ? config.Protocol
-                        : d.Protocols.Contains("spice") ? "spice" : d.Protocols.FirstOrDefault() ?? "vnc")),
-                IsVisible = d.Protocols.Count > 1,
+                ItemsSource = offered.Select(p => p.ToUpperInvariant()).ToList(),
+                SelectedIndex = Math.Max(0, offered.IndexOf(config.Protocol)),
+                IsVisible = offered.Count > 1,
                 MinWidth = 90
             };
 
@@ -202,8 +202,17 @@ internal static class MainWindow
                 btnConnect.IsEnabled = false;
                 try
                 {
-                    var protocol = d.Protocols.Count > 0 ? d.Protocols[Math.Max(0, protocolBox.SelectedIndex)] : "vnc";
-                    var c = await api.ConnectAsync(d.Id, protocol);
+                    var protocol = offered[Math.Max(0, protocolBox.SelectedIndex)];
+                    ConnectInfo c;
+                    try { c = await api.ConnectAsync(d.Id, protocol); }
+                    catch (DeskApiException ex) when (protocol == "rdp" && ex.Code is "NO_RDP" or "NO_IP"
+                                                      && offered.Count > 1 && config.Protocol != "rdp")
+                    {
+                        // a Linux desktop without xrdp, or no address yet: the next one the pool offers
+                        var next = offered[1];
+                        Notice(string.Format(L("RdpFallback"), next.ToUpperInvariant()), Warn);
+                        c = await api.ConnectAsync(d.Id, next);
+                    }
                     var (error, process) = await Viewer.OpenAsync(api, c, Viewer.FindViewer(config.ViewerPath),
                                                                        d.Name, config.ViewerFullScreen);
                     if (process is null)

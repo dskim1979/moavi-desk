@@ -30,13 +30,15 @@ internal sealed class DeskSpec
     public string? Gpu { get; set; }
 }
 
-/// <summary>POST /api/vlab/desktops/&lt;id&gt;/connect: vnc → ws_path + password, spice → a .vv file.</summary>
+/// <summary>POST /api/vlab/desktops/&lt;id&gt;/connect: vnc → ws_path + password, spice → a .vv file,
+/// rdp → an .rdp file (the pool policy's clipboard, drives, printers; H.264 · UDP chosen by mstsc).</summary>
 internal sealed class ConnectInfo
 {
     public string Type { get; set; } = "";
     [JsonPropertyName("ws_path")] public string? WsPath { get; set; }
     public string? Password { get; set; }
     public string? Vv { get; set; }
+    public string? Rdp { get; set; }
     public string? Filename { get; set; }
     [JsonPropertyName("session_id")] public string SessionId { get; set; } = "";
 }
