@@ -41,6 +41,9 @@ internal sealed class ConnectInfo
     public string? Rdp { get; set; }
     public string? Filename { get; set; }
     [JsonPropertyName("session_id")] public string SessionId { get; set; } = "";
+    /// <summary>"warpgate" when the .rdp goes through the Warpgate bastion (single-use ticket as the
+    /// user name, no password); null for the direct / RD Gateway file.</summary>
+    public string? Via { get; set; }
 }
 
 /// <summary>GET /api/vlab/me/ssh-config: researcher native SSH through Warpgate. Each entry is one

@@ -225,6 +225,9 @@ internal static class MainWindow
                         return;
                     }
                     open.Add((process, c.SessionId));
+                    // through the Warpgate bastion: say so - the desktop's own logon screen asks for
+                    // the user's account, nothing is typed for Warpgate and nothing is stored
+                    if (c.Via == "warpgate") { Notice(L("RdpViaWarpgate"), Accent); }
                     process.EnableRaisingEvents = true;
                     process.Exited += async (_, _) =>
                     {

@@ -56,6 +56,7 @@
   <data name="ViewerLaunchFailed"><value>Failed to start the viewer process.</value></data>
   <data name="RdpNeedsWindows"><value>RDP opens in Windows' Remote Desktop client - pick SPICE or VNC on this PC.</value></data>
   <data name="RdpFallback"><value>This desktop has no RDP - opening it with {0}.</value></data>
+  <data name="RdpViaWarpgate"><value>Connecting through the Warpgate gateway (one-time pass, recorded). If the desktop asks you to sign in, use your own account.</value></data>
   <data name="More"><value>More</value></data>
   <data name="Save"><value>Save</value></data>
 
