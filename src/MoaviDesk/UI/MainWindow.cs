@@ -426,8 +426,8 @@ internal static class MainWindow
                     }
                     open.Add((process, c.SessionId));
                     Status();
-                    // through the Warpgate bastion: say so - the desktop's own logon screen asks for
-                    // the user's account, nothing is typed for Warpgate and nothing is stored
+                    // the desktop's own logon screen asks for the user's account (nothing is typed or stored here);
+                    // which route the connection took is the pool's business and is not shown
                     if (c.Via == "warpgate") { Notice(L("RdpViaWarpgate"), Accent); }
                     process.EnableRaisingEvents = true;
                     process.Exited += async (_, _) =>
