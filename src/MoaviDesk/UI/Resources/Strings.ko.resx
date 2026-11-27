@@ -118,4 +118,11 @@
   <data name="MoaviEnrollProblem" xml:space="preserve"><value>MOAVI Desk 에이전트: {0}</value></data>
   <data name="MoaviEnrollPending" xml:space="preserve"><value>이 PC는 등록되었고 관리자 승인을 기다립니다 (단말 관리).</value></data>
   <data name="MoaviEnrollPendingLab" xml:space="preserve"><value>이 PC는 등록되었고({0}) 관리자 승인을 기다립니다 (단말 관리).</value></data>
+  <data name="RdpConnecting" xml:space="preserve"><value>연결 중…</value></data>
+  <data name="RdpConnected" xml:space="preserve"><value>연결됨</value></data>
+  <data name="RdpFailed" xml:space="preserve"><value>연결하지 못했습니다</value></data>
+  <data name="RdpNoControl" xml:space="preserve"><value>이 PC에 Windows 원격 데스크톱 구성 요소가 없습니다</value></data>
+  <data name="RdpCtrlAltDel" xml:space="preserve"><value>Ctrl+Alt+Del</value></data>
+  <data name="RdpFullScreen" xml:space="preserve"><value>전체 화면</value></data>
+  <data name="RdpDisconnect" xml:space="preserve"><value>연결 끊기</value></data>
 </root>

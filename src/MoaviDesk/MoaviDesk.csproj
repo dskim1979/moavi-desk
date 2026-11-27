@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- the RDP window hosts Windows' Remote Desktop ActiveX control (Services/RdpWindow.cs) -->
+    <UseWindowsForms>true</UseWindowsForms>
     <UseAppHost>true</UseAppHost>
     <AssemblyName>moavi-desk</AssemblyName>
     <RootNamespace>MoaviDesk</RootNamespace>
@@ -18,6 +20,12 @@
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <ApplicationIcon>moavi.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WinForms only in RdpWindow.cs, under an alias; Avalonia owns the plain names -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="moavi.ico" Link="icon.ico" />

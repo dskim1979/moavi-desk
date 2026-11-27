@@ -121,6 +121,10 @@ internal sealed class DeskApi : IDisposable
     public Uri BaseUri { get; }
     public bool IgnoreCertificateErrors { get; }
     public string Username { get; private set; } = "";
+
+    /// <summary>The password this sign-in used, kept in memory only, for the desktop's Windows logon
+    /// in MOAVI Desk's RDP window (Viewer.SignInPassword). Cleared on sign-out.</summary>
+    public string? SignInPassword { get; private set; }
     public string LastError { get; private set; } = "";
 
     public DeskApi(string serverUrl, bool ignoreCertificateErrors, string? certSha256 = null)
@@ -237,6 +241,7 @@ internal sealed class DeskApi : IDisposable
         if (r.StatusCode == HttpStatusCode.OK && Bool(d, "success"))
         {
             Username = username;
+            SignInPassword = password;
             return LoginResult.Ok;
         }
         LastError = Str(d, "error") ?? $"HTTP {(int)r.StatusCode}";
@@ -246,6 +251,7 @@ internal sealed class DeskApi : IDisposable
 
     public async Task LogoutAsync()
     {
+        SignInPassword = null;
         try { await _http.PostAsync("api/auth/logout", null); } catch { /* already gone */ }
     }
 

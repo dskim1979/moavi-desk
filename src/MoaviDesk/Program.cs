@@ -23,6 +23,8 @@ internal sealed class Program
 
         var config = AppConfigManager.Load();
         ApplyLanguage(config.Language);
+        // a desktop in MOAVI Desk's own RDP window (started by the main window, one process each)
+        if (args.Contains(RdpWindow.Switch)) { return RdpWindow.Run(args); }
 
         var lifetime = new ClassicDesktopStyleApplicationLifetime
         {
