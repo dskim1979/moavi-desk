@@ -99,6 +99,21 @@ internal static class SettingsWindow
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         var chkFull = new CheckBox { Content = L("MoaviFullScreen"), IsChecked = config.ViewerFullScreen };
+        // the picture behind the desktops window; empty = the built-in one
+        var txtBackground = UiHelper.TextBox(config.WorkspaceBackground, L("BackgroundDefault"));
+        var btnBackground = UiHelper.IconButton(AppIcons.Folder, "BackgroundPick", foregroundColor: Muted);
+        btnBackground.Click += async (_, _) =>
+        {
+            var files = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = L("BackgroundPick"),
+                AllowMultiple = false,
+                FileTypeFilter = [new FilePickerFileType(L("BackgroundImages")) { Patterns = ["*.jpg", "*.jpeg", "*.png", "*.bmp"] }]
+            });
+            if (files.Count > 0 && files[0].TryGetLocalPath() is { } path) { txtBackground.Text = path; }
+        };
+        var btnBackgroundReset = GhostButton(L("BackgroundReset"));
+        btnBackgroundReset.Click += (_, _) => txtBackground.Text = string.Empty;
         var chkAutoConnect = new CheckBox { Content = L("AutoConnect"), IsChecked = config.AutoConnect, IsEnabled = !config.IsSharedPc };
 
         // RDP window
@@ -170,6 +185,7 @@ internal static class SettingsWindow
             config.Protocol = Protocols[Math.Max(0, cmbProtocol.SelectedIndex)];
             config.ViewerFullScreen = chkFull.IsChecked == true;
             config.AutoConnect = chkAutoConnect.IsChecked == true;
+            config.WorkspaceBackground = txtBackground.Text?.Trim() ?? "";
             config.RdpColorDepth = depths[Math.Max(0, cmbDepth.SelectedIndex)];
             config.RdpAudio = audios[Math.Max(0, cmbAudio.SelectedIndex)];
             config.RdpMicrophone = chkMic.IsChecked == true;
@@ -246,6 +262,8 @@ internal static class SettingsWindow
                 {
                     Pair(L("DefaultProtocol"), cmbProtocol),
                     chkFull, chkAutoConnect,
+                    Pair(L("Background"), UiHelper.RowWithButton(txtBackground, btnBackground)),
+                    btnBackgroundReset,
                     Pair(L("ViewerPath"), UiHelper.RowWithButton(txtViewer, btnBrowse))
                 }
             }),

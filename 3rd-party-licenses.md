@@ -21,3 +21,9 @@ MOAVI Desk 클라이언트는 [LICENSE.md](LICENSE.md)(MIT)에 따라 배포됩�
 
 설치 프로그램(MSI)은 virt-viewer를 수정하지 않은 채 설치 폴더의 `virt-viewer\`에 함께 넣고, 소스를 얻는 방법을
 `virt-viewer\SOURCE.txt`에 둡니다. UsbDk는 넣지 않습니다. 자세한 내용은 [README.md](README.md)의 설치 프로그램 절.
+
+## Paperlogy (font)
+
+The client's typeface, bundled in moavi-desk.exe (converted from WOFF2 to TrueType, glyphs unchanged).
+Copyright (c) 2024 PT&; Paperlogy is a trademark of Lee Juim. Licensed under the SIL Open Font License 1.1 - full text in
+`src/MoaviDesk/Fonts/OFL.txt`.

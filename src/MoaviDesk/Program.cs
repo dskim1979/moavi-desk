@@ -34,6 +34,11 @@ internal sealed class Program
 
         var builder = AppBuilder.Configure<Application>()
                                 .UsePlatformDetect()
+                                // the console's typeface everywhere (Paperlogy, bundled under Fonts)
+                                .ConfigureFonts(fonts => fonts.AddFontCollection(
+                                    new Avalonia.Media.Fonts.EmbeddedFontCollection(new Uri("fonts:Moavi", UriKind.Absolute),
+                                                                                    new Uri("avares://moavi-desk/Fonts", UriKind.Absolute))))
+                                .With(new FontManagerOptions { DefaultFamilyName = "fonts:Moavi#Paperlogy" })
                                 .SetupWithLifetime(lifetime);
 
         builder.Instance!.Styles.Add(new FluentTheme());

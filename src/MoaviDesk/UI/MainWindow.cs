@@ -19,12 +19,27 @@ namespace MoaviDesk.UI;
 /// </summary>
 internal static class MainWindow
 {
-    // a quieter set than the sign-in window: flat surfaces, hairline borders, one accent
-    private static readonly Color Canvas = Color.Parse("#0B1220");
-    private static readonly Color Panel = Color.Parse("#111A2C");
-    private static readonly Color Raised = Color.Parse("#16213A");
-    private static readonly Color Hair = Color.Parse("#22304A");
-    private static readonly Color Subtle = Color.Parse("#8A97AD");
+    // light surfaces over a picture (설정 › 일반 › 배경 이미지), hairline borders, one deep-teal accent
+    private static readonly Color Panel = Color.Parse("#EBFFFFFF");
+    private static readonly Color Raised = Color.Parse("#E6EEF5");
+    private static readonly Color Hair = Color.Parse("#DCE3EC");
+    private static readonly Color Ink = Color.Parse("#0F172A");
+    private static readonly Color Soft = Color.Parse("#475569");
+    private static readonly Color Subtle = Color.Parse("#64748B");
+    private static readonly Color Action = Color.Parse("#12807C");
+
+    /// <summary>The user's picture, else the built-in one.</summary>
+    private static IBrush Backdrop(AppConfig config)
+    {
+        try
+        {
+            var bmp = File.Exists(config.WorkspaceBackground)
+                ? new Avalonia.Media.Imaging.Bitmap(config.WorkspaceBackground)
+                : new Avalonia.Media.Imaging.Bitmap(Avalonia.Platform.AssetLoader.Open(new Uri("avares://moavi-desk/background.jpg")));
+            return new ImageBrush(bmp) { Stretch = Stretch.UniformToFill };
+        }
+        catch { return B(Color.Parse("#EEF3F8")); }
+    }
 
     public static Window Create(AppConfig config, DeskApi api, ClientConfig? clientConfig, string? notice)
     {
@@ -36,9 +51,9 @@ internal static class MainWindow
             MinWidth = 860,
             MinHeight = 520,
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Background = B(Canvas),
+            Background = Backdrop(config),
             Icon = Brand.AppIcon(),
-            RequestedThemeVariant = ThemeVariant.Dark
+            RequestedThemeVariant = ThemeVariant.Light
         };
         if (config.Kiosk && config.KioskForceFullScreen) { window.WindowState = WindowState.FullScreen; }
 
@@ -54,7 +69,7 @@ internal static class MainWindow
         static T Docked<T>(T c, Dock dock) where T : Control { DockPanel.SetDock(c, dock); return c; }
 
         // --- info bar (Windows-style): one line, closable ----------------------------------------
-        var infoText = new TextBlock { Foreground = B(Text), FontSize = 12.5, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+        var infoText = new TextBlock { Foreground = B(Ink), FontSize = 12.5, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
         var infoClose = UiHelper.IconButton(AppIcons.Close, null, size: 12, foregroundColor: Subtle);
         var infoBar = new Border
         {
@@ -69,7 +84,7 @@ internal static class MainWindow
         {
             infoText.Text = text ?? "";
             var c = tone ?? Accent;
-            infoBar.Background = B(Color.FromArgb(0x24, c.R, c.G, c.B));
+            infoBar.Background = B(Color.FromArgb(0xF2, (byte)(255 - ((255 - c.R) / 8)), (byte)(255 - ((255 - c.G) / 8)), (byte)(255 - ((255 - c.B) / 8))));
             infoBar.IsVisible = !string.IsNullOrEmpty(text);
         }
         var updateText = clientConfig?.LatestVersion is { Length: > 0 } latest && LoginWindow.IsOlder(DeskApi.AppVersion, latest)
@@ -87,7 +102,7 @@ internal static class MainWindow
             VerticalContentAlignment = VerticalAlignment.Center,
             InnerLeftContent = new Border { Padding = new Thickness(10, 0, 4, 0), Child = UiHelper.Icon(AppIcons.Search, 14, B(Subtle)) }
         };
-        var btnRefresh = UiHelper.IconButton(AppIcons.Refresh, "Refresh", foregroundColor: Muted);
+        var btnRefresh = UiHelper.IconButton(AppIcons.Refresh, "Refresh", foregroundColor: Soft);
 
         var userMenu = new MenuFlyout { Placement = PlacementMode.BottomEdgeAlignedRight };
         var userButton = new Button
@@ -115,12 +130,12 @@ internal static class MainWindow
                             Text = api.Username.Length > 0 ? api.Username[..1].ToUpperInvariant() : "?",
                             FontSize = 12,
                             FontWeight = FontWeight.SemiBold,
-                            Foreground = B(Text),
+                            Foreground = B(Ink),
                             HorizontalAlignment = HorizontalAlignment.Center,
                             VerticalAlignment = VerticalAlignment.Center
                         }
                     },
-                    new TextBlock { Text = api.Username, FontSize = 13, Foreground = B(Text), VerticalAlignment = VerticalAlignment.Center },
+                    new TextBlock { Text = api.Username, FontSize = 13, Foreground = B(Ink), VerticalAlignment = VerticalAlignment.Center },
                     new PathIcon { Data = Geometry.Parse("M7,10L12,15L17,10H7Z"), Width = 10, Height = 10, Foreground = B(Subtle) }
                 }
             }
@@ -145,7 +160,7 @@ internal static class MainWindow
                         VerticalAlignment = VerticalAlignment.Center,
                         Children =
                         {
-                            Lockup(24, 15),
+                            Lockup(24, 15, Ink),
                             new Border { Width = 1, Height = 18, Background = B(Hair), VerticalAlignment = VerticalAlignment.Center },
                             new TextBlock { Text = api.BaseUri.Host, FontSize = 12, Foreground = B(Subtle), VerticalAlignment = VerticalAlignment.Center }
                         }
@@ -174,8 +189,8 @@ internal static class MainWindow
                     ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
                     Children =
                     {
-                        UiHelper.Icon(icon, 15, B(Muted)),
-                        Col(new TextBlock { Text = label, FontSize = 13, Foreground = B(Text), Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }, 1),
+                        UiHelper.Icon(icon, 15, B(Soft)),
+                        Col(new TextBlock { Text = label, FontSize = 13, Foreground = B(Ink), Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }, 1),
                         Col(count, 2)
                     }
                 }
@@ -205,7 +220,7 @@ internal static class MainWindow
         };
 
         // --- content -------------------------------------------------------------------------------
-        var heading = new TextBlock { FontSize = 18, FontWeight = FontWeight.SemiBold, Foreground = B(Text), VerticalAlignment = VerticalAlignment.Center };
+        var heading = new TextBlock { FontSize = 18, FontWeight = FontWeight.SemiBold, Foreground = B(Ink), VerticalAlignment = VerticalAlignment.Center };
         var sortBox = new ComboBox
         {
             ItemsSource = new[] { L("SortName"), L("SortState") },
@@ -214,9 +229,9 @@ internal static class MainWindow
             FontSize = 12.5
         };
         var grid = new WrapPanel { Orientation = Orientation.Horizontal };
-        var emptyTitle = new TextBlock { FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = B(Text), HorizontalAlignment = HorizontalAlignment.Center };
+        var emptyTitle = new TextBlock { FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = B(Ink), HorizontalAlignment = HorizontalAlignment.Center };
         var emptyText = new TextBlock { FontSize = 12.5, Foreground = B(Subtle), HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxWidth = 360 };
-        var emptyIcon = UiHelper.Icon(AppIcons.Monitor, 40, B(Hair));
+        var emptyIcon = UiHelper.Icon(AppIcons.Monitor, 40, B(Color.Parse("#B6C2D2")));
         emptyIcon.HorizontalAlignment = HorizontalAlignment.Center;
         var empty = new StackPanel
         {
@@ -388,8 +403,8 @@ internal static class MainWindow
             {
                 Content = L("Connect"),
                 IsEnabled = canOpen,
-                Background = B(Accent),
-                Foreground = B(OnAccent),
+                Background = B(Action),
+                Foreground = B(Colors.White),
                 FontWeight = FontWeight.SemiBold,
                 FontSize = 12.5,
                 Padding = new Thickness(14, 5),
@@ -478,7 +493,7 @@ internal static class MainWindow
                 Add(L("Shutdown"), () => Power(d, "shutdown", "MoaviConfirmShutdown"));
                 return m;
             }
-            var btnMore = UiHelper.IconButton(AppIcons.DotsVertical, "More", size: 15, foregroundColor: Muted);
+            var btnMore = UiHelper.IconButton(AppIcons.DotsVertical, "More", size: 15, foregroundColor: Soft);
             btnMore.Flyout = Menu();
 
             // the preview: the OS mark on a muted field, the state chip and the star on top
@@ -489,14 +504,14 @@ internal static class MainWindow
                 Padding = new Thickness(4),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Top,
-                Content = UiHelper.Icon(AppIcons.Star, 15, B(starred ? Color.Parse("#F5B942") : Color.Parse("#4D5B75")))
+                Content = UiHelper.Icon(AppIcons.Star, 15, B(starred ? Color.Parse("#E59E0B") : Color.Parse("#A3B0C2")))
             };
             ToolTip.SetTip(star, L(starred ? "FavoriteRemove" : "FavoriteAdd"));
             star.Click += async (_, _) => await ToggleStar();
 
             var chip = new Border
             {
-                Background = B(Color.FromArgb(0xE6, 0x0B, 0x12, 0x20)),
+                Background = B(Color.Parse("#F2FFFFFF")),
                 CornerRadius = new CornerRadius(3),
                 Padding = new Thickness(7, 3),
                 HorizontalAlignment = HorizontalAlignment.Left,
@@ -508,19 +523,19 @@ internal static class MainWindow
                     Children =
                     {
                         new Ellipse { Width = 6, Height = 6, Fill = B(stateColor), VerticalAlignment = VerticalAlignment.Center },
-                        new TextBlock { Text = stateText, FontSize = 11, Foreground = B(Text) }
+                        new TextBlock { Text = stateText, FontSize = 11, Foreground = B(Ink) }
                     }
                 }
             };
 
-            var mark = UiHelper.Icon(windows ? AppIcons.Windows : AppIcons.Linux, 40, B(windows ? Color.Parse("#5B8DEF") : Color.Parse("#C9D1DE")));
+            var mark = UiHelper.Icon(windows ? AppIcons.Windows : AppIcons.Linux, 40, B(windows ? Color.Parse("#2F6FE4") : Color.Parse("#334155")));
             mark.HorizontalAlignment = HorizontalAlignment.Center;
             mark.VerticalAlignment = VerticalAlignment.Center;
-            mark.Opacity = Running(d) ? 0.9 : 0.45;
+            mark.Opacity = Running(d) ? 0.95 : 0.4;
             var preview = new Border
             {
                 Height = 118,
-                Background = B(windows ? Color.Parse("#14243F") : Color.Parse("#1B2236")),
+                Background = B(windows ? Color.Parse("#E7EFFB") : Color.Parse("#ECEFF4")),
                 CornerRadius = new CornerRadius(5, 5, 0, 0),
                 Child = new Grid { Margin = new Thickness(8), Children = { mark, chip, star } }
             };
@@ -536,7 +551,8 @@ internal static class MainWindow
             {
                 Width = 252,
                 Margin = new Thickness(0, 0, 12, 12),
-                Background = B(Panel),
+                Background = B(Colors.White),
+                BoxShadow = BoxShadows.Parse("0 1 3 0 #140F172A"),
                 BorderBrush = B(Hair),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(6),
@@ -552,7 +568,7 @@ internal static class MainWindow
                             Spacing = 3,
                             Children =
                             {
-                                new TextBlock { Text = d.Name, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = B(Text), TextTrimming = TextTrimming.CharacterEllipsis },
+                                new TextBlock { Text = d.Name, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = B(Ink), TextTrimming = TextTrimming.CharacterEllipsis },
                                 new TextBlock { Text = string.Join("  ·  ", new[] { d.Pool, d.Os }.Where(x => !string.IsNullOrEmpty(x))), FontSize = 12, Foreground = B(Subtle), TextTrimming = TextTrimming.CharacterEllipsis },
                                 new TextBlock { Text = spec, FontSize = 12, Foreground = B(Subtle), IsVisible = spec.Length > 0 },
                                 new Grid
@@ -566,7 +582,7 @@ internal static class MainWindow
                     }
                 }
             };
-            tile.PointerEntered += (_, _) => tile.BorderBrush = B(Color.Parse("#3A4D70"));
+            tile.PointerEntered += (_, _) => tile.BorderBrush = B(Color.Parse("#9FB2CB"));
             tile.PointerExited += (_, _) => tile.BorderBrush = B(Hair);
             tile.DoubleTapped += async (_, _) => await Connect();
             return tile;
@@ -600,6 +616,7 @@ internal static class MainWindow
         {
             if (!await KioskGuard.CheckAsync(window, config)) { return; }
             await SettingsWindow.Create(config).ShowDialog(window);
+            window.Background = Backdrop(config);   // a new picture shows at once
         });
         MenuAdd(L("TilePortal"), () => { OpenUrl(api.BaseUri.ToString()); return Task.CompletedTask; });
         MenuAdd(L("TileSupport"), () => { OpenUrl(supportUrl); return Task.CompletedTask; });

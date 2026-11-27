@@ -68,14 +68,14 @@ internal static class Brand
     }
 
     /// <summary>Mark + "MOAVI Desk" wordmark.</summary>
-    public static Control Lockup(double markSize = 32, double fontSize = 20)
+    public static Control Lockup(double markSize = 32, double fontSize = 20, Color? ink = null)
     {
         var word = new TextBlock
         {
             VerticalAlignment = VerticalAlignment.Center,
             FontSize = fontSize,
             FontWeight = FontWeight.Bold,
-            Foreground = B(Text),
+            Foreground = B(ink ?? Text),
             Inlines = []
         };
         word.Inlines.Add(new Avalonia.Controls.Documents.Run("MOAVI "));

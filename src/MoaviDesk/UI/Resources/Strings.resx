@@ -190,4 +190,9 @@ Open-source notices: LICENSE.md and 3rd-party-licenses.md in the install folder.
   <data name="StatusConnected"><value>Connected to {0}</value></data>
   <data name="StatusSessions"><value>{0} open sessions</value></data>
   <data name="ConnectWith"><value>Connect with {0}</value></data>
+  <data name="Background"><value>Background picture (desktops window)</value></data>
+  <data name="BackgroundDefault"><value>Built-in picture</value></data>
+  <data name="BackgroundPick"><value>Pick a picture</value></data>
+  <data name="BackgroundImages"><value>Pictures</value></data>
+  <data name="BackgroundReset"><value>Use the built-in picture</value></data>
 </root>

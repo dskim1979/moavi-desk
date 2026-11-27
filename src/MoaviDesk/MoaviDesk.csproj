@@ -29,6 +29,11 @@
 
   <ItemGroup>
     <AvaloniaResource Include="moavi.ico" Link="icon.ico" />
+    <AvaloniaResource Include="background.jpg" />
+    <!-- Paperlogy (SIL OFL, Fonts/OFL.txt), the console's typeface: the app's default font -->
+    <AvaloniaResource Include="Fonts\*.ttf" />
+    <!-- the RDP window (WinForms) loads two weights from the exe itself: the MSI ships only moavi-desk.exe -->
+    <EmbeddedResource Include="Fonts\Paperlogy-4Regular.ttf;Fonts\Paperlogy-7Bold.ttf" LogicalName="%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

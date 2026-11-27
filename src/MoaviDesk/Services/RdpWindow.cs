@@ -67,6 +67,32 @@ internal static class RdpWindow
     public static bool CanEmbed(Dictionary<string, string> s)
         => !s.TryGetValue("gatewayaccesstoken", out var t) || t.Length == 0;
 
+    private static readonly System.Drawing.Text.PrivateFontCollection Fonts = LoadFonts();
+
+    private static System.Drawing.Text.PrivateFontCollection LoadFonts()
+    {
+        var pfc = new System.Drawing.Text.PrivateFontCollection();
+        foreach (var f in new[] { "Paperlogy-4Regular.ttf", "Paperlogy-7Bold.ttf" })
+        {
+            try
+            {
+                using var stream = typeof(RdpWindow).Assembly.GetManifestResourceStream(f);
+                if (stream is null) { continue; }
+                var bytes = new byte[stream.Length];
+                stream.ReadExactly(bytes);
+                // GDI+ keeps reading the font from this memory: it stays allocated for the process
+                var mem = Marshal.AllocCoTaskMem(bytes.Length);
+                Marshal.Copy(bytes, 0, mem, bytes.Length);
+                pfc.AddMemoryFont(mem, bytes.Length);
+            }
+            catch { /* Malgun Gothic then */ }
+        }
+        return pfc;
+    }
+
+    private static SD.Font UiFont(float size, SD.FontStyle style = SD.FontStyle.Regular)
+        => Fonts.Families.Length > 0 ? new SD.Font(Fonts.Families[0], size, style) : new SD.Font("Malgun Gothic", size, style);
+
     private sealed class RdpHost : WF.AxHost
     {
         public RdpHost(string clsid) : base(clsid) { }
@@ -150,13 +176,13 @@ internal static class RdpWindow
             var title = new WF.Label
             {
                 Text = $"● {_name}", ForeColor = Ink, AutoSize = true, Dock = WF.DockStyle.Left,
-                Font = new SD.Font("Malgun Gothic", 10f, SD.FontStyle.Bold), TextAlign = SD.ContentAlignment.MiddleLeft,
+                Font = UiFont(10f, SD.FontStyle.Bold), TextAlign = SD.ContentAlignment.MiddleLeft,
                 Padding = new WF.Padding(0, 11, 12, 0)
             };
             _status = new WF.Label
             {
                 Text = L("RdpConnecting"), ForeColor = Muted, AutoSize = true, Dock = WF.DockStyle.Left,
-                Font = new SD.Font("Malgun Gothic", 9f), Padding = new WF.Padding(0, 12, 0, 0)
+                Font = UiFont(9f), Padding = new WF.Padding(0, 12, 0, 0)
             };
             var buttons = new WF.FlowLayoutPanel
             {
@@ -181,7 +207,7 @@ internal static class RdpWindow
             var b = new WF.Button
             {
                 Text = text, AutoSize = true, FlatStyle = WF.FlatStyle.Flat, ForeColor = fore ?? Ink, BackColor = Bar,
-                Font = new SD.Font("Malgun Gothic", 9f), Margin = new WF.Padding(4, 0, 0, 0), Height = 30, Cursor = WF.Cursors.Hand
+                Font = UiFont(9f), Margin = new WF.Padding(4, 0, 0, 0), Height = 30, Cursor = WF.Cursors.Hand
             };
             b.FlatAppearance.BorderColor = SD.ColorTranslator.FromHtml("#2E3D5C");
             b.Click += click;
