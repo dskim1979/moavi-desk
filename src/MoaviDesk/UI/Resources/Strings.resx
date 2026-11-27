@@ -177,4 +177,17 @@ Open-source notices: LICENSE.md and 3rd-party-licenses.md in the install folder.
   <data name="DetailProtocols"><value>Connection</value></data>
   <data name="Launch"><value>Open</value></data>
   <data name="DetailPower"><value>Power</value></data>
+  <data name="SearchDesktops"><value>Search desktops</value></data>
+  <data name="NavHeading"><value>DESKTOPS</value></data>
+  <data name="NavAll"><value>All desktops</value></data>
+  <data name="NavStarred"><value>Starred</value></data>
+  <data name="NavRunning"><value>Running</value></data>
+  <data name="SortName"><value>By name</value></data>
+  <data name="SortState"><value>By state</value></data>
+  <data name="EmptyFiltered"><value>No desktops match</value></data>
+  <data name="EmptyFilteredHint"><value>Try another search or filter.</value></data>
+  <data name="EmptyNoDesktopsHint"><value>Desktops appear here once an administrator assigns one.</value></data>
+  <data name="StatusConnected"><value>Connected to {0}</value></data>
+  <data name="StatusSessions"><value>{0} open sessions</value></data>
+  <data name="ConnectWith"><value>Connect with {0}</value></data>
 </root>

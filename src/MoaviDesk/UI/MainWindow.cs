@@ -12,344 +12,342 @@ using static MoaviDesk.UI.Brand;
 namespace MoaviDesk.UI;
 
 /// <summary>
-/// The signed-in user's launcher, three panels: left the user and the shortcut tiles (refresh,
-/// settings, portal, support, update, sign out); middle the desktops as rows with 실행; right the
-/// selected desktop's spec and power. Refreshes every 20s. Signing out closes the open viewers and
-/// ends their sessions.
+/// The signed-in user's workspace. App bar (server, search, refresh, user menu), a filter rail
+/// (all / starred / running), the desktops as tiles (state, star, spec, 연결 with the protocol, ⋯ for
+/// power; double-click opens, right-click has the same menu) and a status bar (server, version).
+/// Refreshes every 20s. Signing out closes the open viewers and ends their sessions.
 /// </summary>
 internal static class MainWindow
 {
+    // a quieter set than the sign-in window: flat surfaces, hairline borders, one accent
+    private static readonly Color Canvas = Color.Parse("#0B1220");
+    private static readonly Color Panel = Color.Parse("#111A2C");
+    private static readonly Color Raised = Color.Parse("#16213A");
+    private static readonly Color Hair = Color.Parse("#22304A");
+    private static readonly Color Subtle = Color.Parse("#8A97AD");
+
     public static Window Create(AppConfig config, DeskApi api, ClientConfig? clientConfig, string? notice)
     {
         var window = new Window
         {
             Title = $"{Product} · {api.Username}",
-            Width = 1080,
-            Height = 620,
+            Width = 1180,
+            Height = 720,
             MinWidth = 860,
-            MinHeight = 480,
+            MinHeight = 520,
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Background = new LinearGradientBrush
-            {
-                StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-                EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
-                GradientStops =
-                {
-                    new GradientStop(Color.Parse("#1B4650"), 0),
-                    new GradientStop(Color.Parse("#132440"), 0.45),
-                    new GradientStop(Color.Parse("#0C1426"), 1)
-                }
-            },
+            Background = B(Canvas),
             Icon = Brand.AppIcon(),
             RequestedThemeVariant = ThemeVariant.Dark
         };
         if (config.Kiosk && config.KioskForceFullScreen) { window.WindowState = WindowState.FullScreen; }
 
         var open = new List<(Process Process, string SessionId)>();
-        var glass = B(Color.Parse("#A60E1830"));      // the panels sit on the gradient
+        var connectors = new Dictionary<string, Func<Task>>();
+        var autoConnected = false;
+        var signedOut = false;
+        var all = new List<DeskInfo>();
+        var filter = "all";
+        var serverOk = true;
 
-        // --- notices ---------------------------------------------------------------------------
-        var banner = new Border
+        static T Col<T>(T c, int column) where T : Control { Grid.SetColumn(c, column); return c; }
+        static T Docked<T>(T c, Dock dock) where T : Control { DockPanel.SetDock(c, dock); return c; }
+
+        // --- info bar (Windows-style): one line, closable ----------------------------------------
+        var infoText = new TextBlock { Foreground = B(Text), FontSize = 12.5, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+        var infoClose = UiHelper.IconButton(AppIcons.Close, null, size: 12, foregroundColor: Subtle);
+        var infoBar = new Border
         {
-            Background = B(Color.Parse("#173842")),
-            BorderBrush = B(Accent),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(12, 8),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            BorderBrush = B(Hair),
+            Padding = new Thickness(20, 8, 12, 8),
             IsVisible = false,
-            Child = new TextBlock { Foreground = B(Text), TextWrapping = TextWrapping.Wrap, FontSize = 12 }
+            Child = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Children = { infoText, Col(infoClose, 1) } }
         };
-        void Notice(string? text, Color? border = null)
+        infoClose.Click += (_, _) => infoBar.IsVisible = false;
+        void Notice(string? text, Color? tone = null)
         {
-            ((TextBlock)banner.Child!).Text = text ?? "";
-            banner.BorderBrush = B(border ?? Accent);
-            banner.IsVisible = !string.IsNullOrEmpty(text);
+            infoText.Text = text ?? "";
+            var c = tone ?? Accent;
+            infoBar.Background = B(Color.FromArgb(0x24, c.R, c.G, c.B));
+            infoBar.IsVisible = !string.IsNullOrEmpty(text);
         }
         var updateText = clientConfig?.LatestVersion is { Length: > 0 } latest && LoginWindow.IsOlder(DeskApi.AppVersion, latest)
                             ? string.Format(L("MoaviUpdateAvailable"), latest)
                             : null;
         Notice(notice ?? updateText, notice is null ? Accent : Warn);
 
-        static Border Panel(IBrush bg, Control child) => new()
+        // --- app bar -------------------------------------------------------------------------------
+        var search = new TextBox
         {
-            Background = bg,
-            BorderBrush = B(Color.Parse("#402E3D5C")),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(14),
-            Padding = new Thickness(18),
-            Child = child
+            Watermark = L("SearchDesktops"),
+            Width = 320,
+            Height = 32,
+            FontSize = 13,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            InnerLeftContent = new Border { Padding = new Thickness(10, 0, 4, 0), Child = UiHelper.Icon(AppIcons.Search, 14, B(Subtle)) }
         };
+        var btnRefresh = UiHelper.IconButton(AppIcons.Refresh, "Refresh", foregroundColor: Muted);
 
-        static TextBlock Heading(string text) => new()
+        var userMenu = new MenuFlyout { Placement = PlacementMode.BottomEdgeAlignedRight };
+        var userButton = new Button
         {
-            Text = text,
-            FontSize = 15,
-            FontWeight = FontWeight.Bold,
-            Foreground = B(Text),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-
-        // --- left: the user and the shortcut tiles ----------------------------------------------
-        var initials = new string(api.Username.Where(char.IsLetterOrDigit).Take(2).ToArray()).ToUpperInvariant();
-        var avatar = new Border
-        {
-            Width = 76,
-            Height = 76,
-            CornerRadius = new CornerRadius(38),
-            Background = new LinearGradientBrush
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(6, 4),
+            Flyout = userMenu,
+            Content = new StackPanel
             {
-                StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-                EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
-                GradientStops = { new GradientStop(Accent, 0), new GradientStop(Color.Parse("#2563EB"), 1) }
-            },
-            BorderBrush = B(Color.Parse("#66FFFFFF")),
-            BorderThickness = new Thickness(2),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Child = new TextBlock
-            {
-                Text = initials.Length > 0 ? initials : "?",
-                FontSize = 26,
-                FontWeight = FontWeight.Bold,
-                Foreground = B(Colors.White),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
+                Orientation = Orientation.Horizontal,
+                Spacing = 8,
+                Children =
+                {
+                    new Border
+                    {
+                        Width = 26,
+                        Height = 26,
+                        CornerRadius = new CornerRadius(4),
+                        Background = B(Raised),
+                        BorderBrush = B(Hair),
+                        BorderThickness = new Thickness(1),
+                        Child = new TextBlock
+                        {
+                            Text = api.Username.Length > 0 ? api.Username[..1].ToUpperInvariant() : "?",
+                            FontSize = 12,
+                            FontWeight = FontWeight.SemiBold,
+                            Foreground = B(Text),
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    },
+                    new TextBlock { Text = api.Username, FontSize = 13, Foreground = B(Text), VerticalAlignment = VerticalAlignment.Center },
+                    new PathIcon { Data = Geometry.Parse("M7,10L12,15L17,10H7Z"), Width = 10, Height = 10, Foreground = B(Subtle) }
+                }
             }
         };
-        var userName = new TextBlock { Text = api.Username, FontSize = 15, FontWeight = FontWeight.Bold, Foreground = B(Text), HorizontalAlignment = HorizontalAlignment.Center };
-        var deskCount = new TextBlock { Foreground = B(Muted), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center };
 
-        Button Tile(string icon, string label, Func<Task> act)
+        var appBar = new Border
         {
+            Background = B(Panel),
+            BorderBrush = B(Hair),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(16, 0, 12, 0),
+            Height = 52,
+            Child = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"),
+                Children =
+                {
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Spacing = 12,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Children =
+                        {
+                            Lockup(24, 15),
+                            new Border { Width = 1, Height = 18, Background = B(Hair), VerticalAlignment = VerticalAlignment.Center },
+                            new TextBlock { Text = api.BaseUri.Host, FontSize = 12, Foreground = B(Subtle), VerticalAlignment = VerticalAlignment.Center }
+                        }
+                    },
+                    Col(new Border { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Child = search }, 1),
+                    Col(btnRefresh, 2),
+                    Col(userButton, 3)
+                }
+            }
+        };
+
+        // --- filter rail ---------------------------------------------------------------------------
+        (Button Button, TextBlock Count) NavItem(string icon, string label)
+        {
+            var count = new TextBlock { FontSize = 12, Foreground = B(Subtle), VerticalAlignment = VerticalAlignment.Center };
             var b = new Button
             {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
-                Padding = new Thickness(2, 6),
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = HorizontalAlignment.Center,
-                Content = new StackPanel
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10, 8),
+                Content = new Grid
                 {
-                    Spacing = 6,
+                    ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
                     Children =
                     {
-                        new Border
-                        {
-                            Width = 46,
-                            Height = 46,
-                            CornerRadius = new CornerRadius(23),
-                            Background = B(Color.Parse("#26FFFFFF")),
-                            BorderBrush = B(Color.Parse("#40FFFFFF")),
-                            BorderThickness = new Thickness(1),
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            Child = UiHelper.Icon(icon, 20, B(Colors.White))
-                        },
-                        new TextBlock { Text = label, FontSize = 12, Foreground = B(Text), HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis }
+                        UiHelper.Icon(icon, 15, B(Muted)),
+                        Col(new TextBlock { Text = label, FontSize = 13, Foreground = B(Text), Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }, 1),
+                        Col(count, 2)
                     }
                 }
             };
-            b.Click += async (_, _) => await act();
-            return b;
+            return (b, count);
         }
+        var navAll = NavItem(AppIcons.ViewGrid, L("NavAll"));
+        var navStar = NavItem(AppIcons.Star, L("NavStarred"));
+        var navRunning = NavItem(AppIcons.Play, L("NavRunning"));
 
-        var supportUrl = clientConfig?.SupportUrl is { Length: > 0 } s ? s : DefaultSupportUrl;
-        var tiles = new UniformGrid { Columns = 3, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 6, 0, 0) };
-        var left = Panel(glass, new DockPanel
+        var rail = new Border
         {
-            Children =
+            Width = 216,
+            Background = B(Panel),
+            BorderBrush = B(Hair),
+            BorderThickness = new Thickness(0, 0, 1, 0),
+            Padding = new Thickness(10, 16),
+            Child = new StackPanel
             {
-                Docked(new StackPanel
+                Spacing = 2,
+                Children =
                 {
-                    Spacing = 8,
-                    Margin = new Thickness(0, 6, 0, 18),
-                    Children = { avatar, userName, deskCount }
-                }, Dock.Top),
-                Docked(new TextBlock
-                {
-                    Text = $"v{DeskApi.AppVersion} · (주)매커스시스템즈",
-                    Foreground = B(Muted),
-                    FontSize = 10,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 10, 0, 0)
-                }, Dock.Bottom),
-                tiles
+                    new TextBlock { Text = L("NavHeading"), FontSize = 11, FontWeight = FontWeight.SemiBold, LetterSpacing = 0.6, Foreground = B(Subtle), Margin = new Thickness(10, 0, 0, 8) },
+                    navAll.Button, navStar.Button, navRunning.Button
+                }
             }
-        });
-        left.Width = 260;
-
-        // --- middle: the desktops ---------------------------------------------------------------
-        var rows = new StackPanel { Spacing = 8 };
-        var empty = new TextBlock { Text = L("MoaviNoDesktops"), Foreground = B(Muted), IsVisible = false, Margin = new Thickness(4, 12), TextWrapping = TextWrapping.Wrap };
-        var listTitle = Heading(L("MoaviMyDesktops"));
-        var middle = Panel(glass, new DockPanel
-        {
-            Children =
-            {
-                Docked(new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Spacing = 8,
-                    Margin = new Thickness(0, 0, 0, 12),
-                    Children = { UiHelper.Icon(AppIcons.Monitor, 18, B(Accent)), listTitle }
-                }, Dock.Top),
-                Docked(banner, Dock.Bottom),
-                new ScrollViewer { Content = new StackPanel { Children = { empty, rows } } }
-            }
-        });
-
-        // --- right: the selected desktop --------------------------------------------------------
-        var detail = new StackPanel { Spacing = 10 };
-        var right = Panel(glass, new DockPanel
-        {
-            Children =
-            {
-                Docked(new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Spacing = 8,
-                    Margin = new Thickness(0, 0, 0, 12),
-                    Children = { UiHelper.Icon(AppIcons.ChartBar, 18, B(Accent)), Heading(L("DesktopInfo")) }
-                }, Dock.Top),
-                new ScrollViewer { Content = detail }
-            }
-        });
-        right.Width = 290;
-
-        var root = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-            Margin = new Thickness(16),
-            Children = { left, WithColumn(middle, 1, new Thickness(14, 0)), WithColumn(right, 2) }
         };
+
+        // --- content -------------------------------------------------------------------------------
+        var heading = new TextBlock { FontSize = 18, FontWeight = FontWeight.SemiBold, Foreground = B(Text), VerticalAlignment = VerticalAlignment.Center };
+        var sortBox = new ComboBox
+        {
+            ItemsSource = new[] { L("SortName"), L("SortState") },
+            SelectedIndex = 0,
+            MinWidth = 120,
+            FontSize = 12.5
+        };
+        var grid = new WrapPanel { Orientation = Orientation.Horizontal };
+        var emptyTitle = new TextBlock { FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = B(Text), HorizontalAlignment = HorizontalAlignment.Center };
+        var emptyText = new TextBlock { FontSize = 12.5, Foreground = B(Subtle), HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxWidth = 360 };
+        var emptyIcon = UiHelper.Icon(AppIcons.Monitor, 40, B(Hair));
+        emptyIcon.HorizontalAlignment = HorizontalAlignment.Center;
+        var empty = new StackPanel
+        {
+            Spacing = 8,
+            Margin = new Thickness(0, 80, 0, 0),
+            IsVisible = false,
+            Children = { emptyIcon, emptyTitle, emptyText }
+        };
+        var content = new ScrollViewer
+        {
+            Content = new StackPanel
+            {
+                Margin = new Thickness(24, 20, 12, 20),
+                Spacing = 16,
+                Children =
+                {
+                    new Grid
+                    {
+                        ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                        Margin = new Thickness(0, 0, 12, 0),
+                        Children = { heading, Col(sortBox, 1) }
+                    },
+                    empty,
+                    grid
+                }
+            }
+        };
+
+        // --- status bar ----------------------------------------------------------------------------
+        var statusDot = new Ellipse { Width = 7, Height = 7, VerticalAlignment = VerticalAlignment.Center };
+        var statusText = new TextBlock { FontSize = 11.5, Foreground = B(Subtle), VerticalAlignment = VerticalAlignment.Center };
+        var sessionsText = new TextBlock { FontSize = 11.5, Foreground = B(Subtle), VerticalAlignment = VerticalAlignment.Center };
+        var statusBar = new Border
+        {
+            Background = B(Panel),
+            BorderBrush = B(Hair),
+            BorderThickness = new Thickness(0, 1, 0, 0),
+            Padding = new Thickness(14, 0),
+            Height = 26,
+            Child = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+                Children =
+                {
+                    new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7, Children = { statusDot, statusText } },
+                    Col(new Border { Margin = new Thickness(18, 0, 0, 0), Child = sessionsText }, 1),
+                    Col(new TextBlock { Text = $"MOAVI Desk {DeskApi.AppVersion}", FontSize = 11.5, Foreground = B(Subtle), VerticalAlignment = VerticalAlignment.Center }, 2)
+                }
+            }
+        };
+
+        var body = new DockPanel();
+        body.Children.Add(Docked(rail, Dock.Left));
+        body.Children.Add(content);
+        var root = new DockPanel();
+        root.Children.Add(Docked(appBar, Dock.Top));
+        root.Children.Add(Docked(infoBar, Dock.Top));
+        root.Children.Add(Docked(statusBar, Dock.Bottom));
+        root.Children.Add(body);
         window.Content = root;
 
-        static Control Docked(Control c, Dock dock)
+        // --- behaviour -----------------------------------------------------------------------------
+        void Status()
         {
-            DockPanel.SetDock(c, dock);
-            return c;
+            statusDot.Fill = B(serverOk ? Ok : Danger);
+            statusText.Text = serverOk ? string.Format(L("StatusConnected"), api.BaseUri.Host) : L("MoaviServerOffline");
+            sessionsText.Text = open.Count > 0 ? string.Format(L("StatusSessions"), open.Count) : "";
         }
-
-        static Control WithColumn(Control c, int column, Thickness? margin = null)
-        {
-            Grid.SetColumn(c, column);
-            if (margin is { } m) { c.Margin = m; }
-            return c;
-        }
-
-        // --- behaviour --------------------------------------------------------------------------
-        var connectors = new Dictionary<string, Func<Task>>();
-        var autoConnected = false;
-        var selectedId = config.FavoriteDesktop;
-        var rowOf = new Dictionary<string, Border>();
-        var last = new List<DeskInfo>();
 
         (string Text, Color Color) State(DeskInfo d) => d.State switch
         {
             "ready" => (L("MoaviStateReady"), Ok),
             "running" => (L("MoaviStateRunning"), Ok),
-            "stopped" => (L("MoaviStateStopped"), Muted),
+            "stopped" => (L("MoaviStateStopped"), Subtle),
             "error" => (L("MoaviStateError"), Danger),
             _ => (L("MoaviStateBusy"), Warn)
         };
+        static bool Running(DeskInfo d) => d.State is "running" or "ready";
 
-        async Task Power(DeskInfo d, string action, string? confirmKey)
+        void SetFilter(string f)
         {
-            if (confirmKey is not null && !await DialogHelper.ConfirmAsync(window, string.Format(L(confirmKey), d.Name))) { return; }
-            try { await api.PowerAsync(d.Id, action); await Task.Delay(1500); await Load(); }
-            catch (DeskApiException ex) { Notice(ex.Message, Danger); }
+            filter = f;
+            foreach (var (key, nav) in new[] { ("all", navAll), ("star", navStar), ("running", navRunning) })
+            {
+                nav.Button.Background = key == f ? B(Raised) : Brushes.Transparent;
+            }
+            Render();
         }
 
-        void Select(string id)
+        void Render()
         {
-            selectedId = id;
-            foreach (var (key, row) in rowOf)
+            var q = search.Text?.Trim() ?? "";
+            IEnumerable<DeskInfo> list = all;
+            if (filter == "star") { list = list.Where(d => d.Id == config.FavoriteDesktop); }
+            if (filter == "running") { list = list.Where(Running); }
+            if (q.Length > 0)
             {
-                row.BorderBrush = B(key == id ? Accent : Color.Parse("#402E3D5C"));
-                row.Background = B(Color.Parse(key == id ? "#E6F1F5F9" : "#D9DCE3EC"));
+                list = list.Where(d => d.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
+                                       || d.Pool.Contains(q, StringComparison.OrdinalIgnoreCase));
             }
-            ShowDetail(last.FirstOrDefault(x => x.Id == id));
-        }
+            list = sortBox.SelectedIndex == 1
+                ? list.OrderBy(d => Running(d) ? 0 : 1).ThenBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase)
+                : list.OrderBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase);
+            var shown = list.ToList();
 
-        void ShowDetail(DeskInfo? d)
-        {
-            detail.Children.Clear();
-            if (d is null)
-            {
-                detail.Children.Add(new TextBlock { Text = L("DesktopPick"), Foreground = B(Muted), TextWrapping = TextWrapping.Wrap });
-                return;
-            }
-            var (stateText, stateColor) = State(d);
-            detail.Children.Add(new TextBlock { Text = d.Name, FontSize = 17, FontWeight = FontWeight.Bold, Foreground = B(Text), TextWrapping = TextWrapping.Wrap });
-            detail.Children.Add(new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 6,
-                Children =
-                {
-                    new Ellipse { Width = 8, Height = 8, Fill = B(stateColor), VerticalAlignment = VerticalAlignment.Center },
-                    new TextBlock { Text = stateText, Foreground = B(Text), FontSize = 12 }
-                }
-            });
+            heading.Text = filter switch { "star" => L("NavStarred"), "running" => L("NavRunning"), _ => L("NavAll") };
+            navAll.Count.Text = all.Count.ToString();
+            navStar.Count.Text = all.Count(d => d.Id == config.FavoriteDesktop).ToString();
+            navRunning.Count.Text = all.Count(Running).ToString();
 
-            Control Line(string label, string value) => new Grid
-            {
-                ColumnDefinitions = new ColumnDefinitions("90,*"),
-                Children =
-                {
-                    new TextBlock { Text = label, Foreground = B(Muted), FontSize = 12 },
-                    WithColumn(new TextBlock { Text = value, Foreground = B(Text), FontSize = 12, TextWrapping = TextWrapping.Wrap }, 1)
-                }
-            };
-            var specBox = new StackPanel { Spacing = 7 };
-            specBox.Children.Add(Line(L("DetailPool"), d.Pool));
-            if (!string.IsNullOrEmpty(d.Os)) { specBox.Children.Add(Line("OS", d.Os)); }
-            if (d.Spec?.Cpu is { } cpu) { specBox.Children.Add(Line("CPU", $"{cpu} vCPU")); }
-            if (d.Spec?.MemoryGb is { } mem) { specBox.Children.Add(Line(L("DetailMemory"), $"{mem:0.#} GB")); }
-            if (!string.IsNullOrEmpty(d.Spec?.Gpu)) { specBox.Children.Add(Line("GPU", d.Spec!.Gpu!)); }
-            specBox.Children.Add(Line(L("DetailProtocols"), string.Join(" · ", Viewer.Offered(d.Protocols).Select(p => p.ToUpperInvariant()))));
-            detail.Children.Add(new Border
-            {
-                Background = B(Color.Parse("#1AFFFFFF")),
-                CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(12),
-                Margin = new Thickness(0, 4, 0, 0),
-                Child = specBox
-            });
-
-            // power, as round tiles like the left panel
-            var power = new UniformGrid { Columns = 3, Margin = new Thickness(0, 8, 0, 0) };
-            foreach (var (icon, key, action, confirmKey) in new[]
-                     {
-                         (AppIcons.Play, "Start", "start", (string?)null),
-                         (AppIcons.Refresh, "MoaviReboot", "reboot", "MoaviConfirmReboot"),
-                         (AppIcons.Stop, "Shutdown", "shutdown", "MoaviConfirmShutdown")
-                     })
-            {
-                power.Children.Add(Tile(icon, L(key), () => Power(d, action, confirmKey)));
-            }
-            detail.Children.Add(new TextBlock { Text = L("DetailPower"), Foreground = B(Muted), FontSize = 12, Margin = new Thickness(0, 8, 0, 0) });
-            detail.Children.Add(power);
+            grid.Children.Clear();
+            connectors.Clear();
+            foreach (var d in shown) { grid.Children.Add(Tile(d)); }
+            empty.IsVisible = shown.Count == 0;
+            emptyTitle.Text = all.Count == 0 ? L("MoaviNoDesktops") : L("EmptyFiltered");
+            emptyText.Text = all.Count == 0 ? L("EmptyNoDesktopsHint") : L("EmptyFilteredHint");
+            Status();
         }
 
         async Task Load()
         {
             try
             {
-                var list = await api.DesktopsAsync();
-                last = list.OrderByDescending(x => x.Id == config.FavoriteDesktop).ToList();
-                rows.Children.Clear();
-                rowOf.Clear();
-                connectors.Clear();
-                foreach (var d in last) { rows.Children.Add(Row(d)); }
-                empty.IsVisible = list.Count == 0;
-                listTitle.Text = $"{L("MoaviMyDesktops")}  {list.Count}";
-                deskCount.Text = string.Format(L("DesktopCount"), list.Count);
-                if (last.All(x => x.Id != selectedId)) { selectedId = last.FirstOrDefault()?.Id ?? ""; }
-                Select(selectedId);
+                all = await api.DesktopsAsync();
+                serverOk = true;
+                Render();
                 // 자동 접속: the starred desktop, else the only one - once per sign-in
                 if (!autoConnected && config.AutoConnect && !config.IsSharedPc)
                 {
                     autoConnected = true;
-                    var pick = list.FirstOrDefault(x => x.Id == config.FavoriteDesktop) ?? (list.Count == 1 ? list[0] : null);
+                    var pick = all.FirstOrDefault(x => x.Id == config.FavoriteDesktop) ?? (all.Count == 1 ? all[0] : null);
                     if (pick is not null && connectors.TryGetValue(pick.Id, out var go)) { await go(); }
                 }
                 // Researcher native SSH: keep the managed ~/.ssh/config block in sync with the
@@ -362,30 +360,40 @@ internal static class MainWindow
             }
             catch (DeskApiException ex)
             {
+                serverOk = ex.Status != 0;
+                Status();
                 Notice(ex.Message, Danger);
             }
         }
 
-        Control Row(DeskInfo d)
+        async Task Power(DeskInfo d, string action, string? confirmKey)
+        {
+            if (confirmKey is not null && !await DialogHelper.ConfirmAsync(window, string.Format(L(confirmKey), d.Name))) { return; }
+            try { await api.PowerAsync(d.Id, action); await Task.Delay(1500); await Load(); }
+            catch (DeskApiException ex) { Notice(ex.Message, Danger); }
+        }
+
+        Control Tile(DeskInfo d)
         {
             var (stateText, stateColor) = State(d);
-            var ink = Color.Parse("#0F182C");
-            var inkMuted = Color.Parse("#4B5B73");
-
-            var btnConnect = PrimaryButton(L("Launch"));
-            btnConnect.MinWidth = 84;
-            btnConnect.IsEnabled = d.State is not ("provisioning" or "resetting" or "error");
+            var windows = d.Os?.Contains("Windows", StringComparison.OrdinalIgnoreCase) == true;
+            var canOpen = d.State is not ("provisioning" or "resetting" or "error");
 
             // RDP first, SPICE / VNC as the choice (browser RDP is the portal's)
             var offered = Viewer.Offered(d.Protocols);
             if (offered.Count == 0) { offered.Add("vnc"); }
-            var protocolBox = new ComboBox
+            var protocol = offered[Math.Max(0, offered.IndexOf(config.Protocol))];
+
+            var btnConnect = new SplitButton
             {
-                ItemsSource = offered.Select(p => p.ToUpperInvariant()).ToList(),
-                SelectedIndex = Math.Max(0, offered.IndexOf(config.Protocol)),
-                IsVisible = offered.Count > 1,
-                MinWidth = 84,
-                VerticalAlignment = VerticalAlignment.Center
+                Content = L("Connect"),
+                IsEnabled = canOpen,
+                Background = B(Accent),
+                Foreground = B(OnAccent),
+                FontWeight = FontWeight.SemiBold,
+                FontSize = 12.5,
+                Padding = new Thickness(14, 5),
+                CornerRadius = new CornerRadius(4)
             };
 
             async Task Connect()
@@ -394,7 +402,6 @@ internal static class MainWindow
                 btnConnect.IsEnabled = false;
                 try
                 {
-                    var protocol = offered[Math.Max(0, protocolBox.SelectedIndex)];
                     ConnectInfo c;
                     try { c = await api.ConnectAsync(d.Id, protocol); }
                     catch (DeskApiException ex) when (protocol == "rdp" && ex.Code is "NO_RDP" or "NO_IP"
@@ -414,6 +421,7 @@ internal static class MainWindow
                         return;
                     }
                     open.Add((process, c.SessionId));
+                    Status();
                     // through the Warpgate bastion: say so - the desktop's own logon screen asks for
                     // the user's account, nothing is typed for Warpgate and nothing is stored
                     if (c.Via == "warpgate") { Notice(L("RdpViaWarpgate"), Accent); }
@@ -421,6 +429,7 @@ internal static class MainWindow
                     process.Exited += async (_, _) =>
                     {
                         open.RemoveAll(o => o.Process == process);
+                        Dispatcher.UIThread.Post(Status);
                         await api.EndSessionAsync(c.SessionId);
                     };
                 }
@@ -428,67 +437,141 @@ internal static class MainWindow
                 finally { btnConnect.IsEnabled = true; }
             }
             btnConnect.Click += async (_, _) => await Connect();
-            if (btnConnect.IsEnabled) { connectors[d.Id] = Connect; }
+            if (canOpen) { connectors[d.Id] = Connect; }
 
-            // the star: one desktop at a time, shown first and opened by 자동 접속
+            // the split part picks the protocol for this connection
+            var protoMenu = new MenuFlyout();
+            foreach (var p in offered)
+            {
+                var item = new MenuItem { Header = string.Format(L("ConnectWith"), p.ToUpperInvariant()) };
+                item.Click += async (_, _) => { protocol = p; await Connect(); };
+                protoMenu.Items.Add(item);
+            }
+            btnConnect.Flyout = protoMenu;
+            ToolTip.SetTip(btnConnect, $"{L("DetailProtocols")}: {protocol.ToUpperInvariant()}");
+
+            // the star: one desktop at a time, opened by 자동 접속
             var starred = d.Id == config.FavoriteDesktop;
-            var btnStar = UiHelper.IconButton(AppIcons.Star, "Favorite", foregroundColor: starred ? Color.Parse("#E08A1E") : inkMuted);
-            ToolTip.SetTip(btnStar, L(starred ? "FavoriteRemove" : "FavoriteAdd"));
-            btnStar.Click += async (_, _) =>
+            Task ToggleStar()
             {
                 config.FavoriteDesktop = starred ? string.Empty : d.Id;
                 AppConfigManager.Save(config);
-                await Load();
-            };
+                Render();
+                return Task.CompletedTask;
+            }
 
-            var windows = d.Os?.Contains("Windows", StringComparison.OrdinalIgnoreCase) == true;
-            var row = new Border
+            // ⋯ and right-click: the same menu
+            MenuFlyout Menu()
             {
-                Background = B(Color.Parse("#D9DCE3EC")),
-                BorderBrush = B(Color.Parse("#402E3D5C")),
-                BorderThickness = new Thickness(2),
-                CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(14, 10),
-                Cursor = new Cursor(StandardCursorType.Hand),
-                Child = new Grid
+                var m = new MenuFlyout();
+                void Add(string header, Func<Task> act, bool enabled = true)
                 {
-                    ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto"),
+                    var item = new MenuItem { Header = header, IsEnabled = enabled };
+                    item.Click += async (_, _) => await act();
+                    m.Items.Add(item);
+                }
+                Add(L("Connect"), Connect, canOpen);
+                Add(L(starred ? "FavoriteRemove" : "FavoriteAdd"), ToggleStar);
+                m.Items.Add(new Separator());
+                Add(L("Start"), () => Power(d, "start", null));
+                Add(L("MoaviReboot"), () => Power(d, "reboot", "MoaviConfirmReboot"));
+                Add(L("Shutdown"), () => Power(d, "shutdown", "MoaviConfirmShutdown"));
+                return m;
+            }
+            var btnMore = UiHelper.IconButton(AppIcons.DotsVertical, "More", size: 15, foregroundColor: Muted);
+            btnMore.Flyout = Menu();
+
+            // the preview: the OS mark on a muted field, the state chip and the star on top
+            var star = new Button
+            {
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(4),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Content = UiHelper.Icon(AppIcons.Star, 15, B(starred ? Color.Parse("#F5B942") : Color.Parse("#4D5B75")))
+            };
+            ToolTip.SetTip(star, L(starred ? "FavoriteRemove" : "FavoriteAdd"));
+            star.Click += async (_, _) => await ToggleStar();
+
+            var chip = new Border
+            {
+                Background = B(Color.FromArgb(0xE6, 0x0B, 0x12, 0x20)),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(7, 3),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top,
+                Child = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 5,
                     Children =
                     {
-                        UiHelper.Icon(windows ? AppIcons.Windows : AppIcons.Linux, 26, B(Color.Parse("#2563EB"))),
-                        WithColumn(new StackPanel
-                        {
-                            Margin = new Thickness(12, 0, 8, 0),
-                            VerticalAlignment = VerticalAlignment.Center,
-                            Children =
-                            {
-                                new TextBlock { Text = d.Name, FontWeight = FontWeight.Bold, FontSize = 14, Foreground = B(ink), TextTrimming = TextTrimming.CharacterEllipsis },
-                                new StackPanel
-                                {
-                                    Orientation = Orientation.Horizontal,
-                                    Spacing = 6,
-                                    Margin = new Thickness(0, 3, 0, 0),
-                                    Children =
-                                    {
-                                        new Ellipse { Width = 7, Height = 7, Fill = B(stateColor == Muted ? inkMuted : stateColor), VerticalAlignment = VerticalAlignment.Center },
-                                        new TextBlock { Text = $"{stateText} · {d.Os ?? d.Pool}", FontSize = 11, Foreground = B(inkMuted), TextTrimming = TextTrimming.CharacterEllipsis }
-                                    }
-                                }
-                            }
-                        }, 1),
-                        WithColumn(btnStar, 2),
-                        WithColumn(protocolBox, 3, new Thickness(6, 0, 8, 0)),
-                        WithColumn(btnConnect, 4)
+                        new Ellipse { Width = 6, Height = 6, Fill = B(stateColor), VerticalAlignment = VerticalAlignment.Center },
+                        new TextBlock { Text = stateText, FontSize = 11, Foreground = B(Text) }
                     }
                 }
             };
-            row.PointerPressed += (_, _) => Select(d.Id);
-            row.DoubleTapped += async (_, _) => await Connect();
-            rowOf[d.Id] = row;
-            return row;
+
+            var mark = UiHelper.Icon(windows ? AppIcons.Windows : AppIcons.Linux, 40, B(windows ? Color.Parse("#5B8DEF") : Color.Parse("#C9D1DE")));
+            mark.HorizontalAlignment = HorizontalAlignment.Center;
+            mark.VerticalAlignment = VerticalAlignment.Center;
+            mark.Opacity = Running(d) ? 0.9 : 0.45;
+            var preview = new Border
+            {
+                Height = 118,
+                Background = B(windows ? Color.Parse("#14243F") : Color.Parse("#1B2236")),
+                CornerRadius = new CornerRadius(5, 5, 0, 0),
+                Child = new Grid { Margin = new Thickness(8), Children = { mark, chip, star } }
+            };
+
+            var spec = string.Join("  ·  ", new[]
+            {
+                d.Spec?.Cpu is { } cpu ? $"{cpu} vCPU" : null,
+                d.Spec?.MemoryGb is { } mem ? $"{mem:0.#} GB" : null,
+                d.Spec?.Gpu
+            }.Where(x => !string.IsNullOrEmpty(x)));
+
+            var tile = new Border
+            {
+                Width = 252,
+                Margin = new Thickness(0, 0, 12, 12),
+                Background = B(Panel),
+                BorderBrush = B(Hair),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                ContextFlyout = Menu(),
+                Child = new StackPanel
+                {
+                    Children =
+                    {
+                        preview,
+                        new StackPanel
+                        {
+                            Margin = new Thickness(14, 12, 10, 12),
+                            Spacing = 3,
+                            Children =
+                            {
+                                new TextBlock { Text = d.Name, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = B(Text), TextTrimming = TextTrimming.CharacterEllipsis },
+                                new TextBlock { Text = string.Join("  ·  ", new[] { d.Pool, d.Os }.Where(x => !string.IsNullOrEmpty(x))), FontSize = 12, Foreground = B(Subtle), TextTrimming = TextTrimming.CharacterEllipsis },
+                                new TextBlock { Text = spec, FontSize = 12, Foreground = B(Subtle), IsVisible = spec.Length > 0 },
+                                new Grid
+                                {
+                                    ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                                    Margin = new Thickness(0, 10, 0, 0),
+                                    Children = { btnConnect, Col(btnMore, 1) }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            tile.PointerEntered += (_, _) => tile.BorderBrush = B(Color.Parse("#3A4D70"));
+            tile.PointerExited += (_, _) => tile.BorderBrush = B(Hair);
+            tile.DoubleTapped += async (_, _) => await Connect();
+            return tile;
         }
 
-        var signedOut = false;
         async Task SignOut()
         {
             if (signedOut) { return; }
@@ -505,24 +588,39 @@ internal static class MainWindow
             window.Close();
         }
 
-        // the tiles call Load / SignOut, so they are filled in once those exist
-        tiles.Children.Add(Tile(AppIcons.Refresh, L("Refresh"), () => Load()));
-        tiles.Children.Add(Tile(AppIcons.Web, L("TilePortal"), () => { OpenUrl(api.BaseUri.ToString()); return Task.CompletedTask; }));
-        tiles.Children.Add(Tile(AppIcons.Info, L("TileSupport"), () => { OpenUrl(supportUrl); return Task.CompletedTask; }));
-        tiles.Children.Add(Tile(AppIcons.Settings, L("Settings"), async () =>
+        // the user menu
+        var supportUrl = clientConfig?.SupportUrl is { Length: > 0 } s ? s : DefaultSupportUrl;
+        void MenuAdd(string header, Func<Task> act)
+        {
+            var item = new MenuItem { Header = header };
+            item.Click += async (_, _) => await act();
+            userMenu.Items.Add(item);
+        }
+        MenuAdd(L("Settings"), async () =>
         {
             if (!await KioskGuard.CheckAsync(window, config)) { return; }
             await SettingsWindow.Create(config).ShowDialog(window);
-        }));
+        });
+        MenuAdd(L("TilePortal"), () => { OpenUrl(api.BaseUri.ToString()); return Task.CompletedTask; });
+        MenuAdd(L("TileSupport"), () => { OpenUrl(supportUrl); return Task.CompletedTask; });
         if (updateText is not null && clientConfig?.DownloadUrl is { Length: > 0 } dl)
         {
-            tiles.Children.Add(Tile(AppIcons.Update, L("MoaviDownload"), () => { OpenUrl(dl); return Task.CompletedTask; }));
+            MenuAdd(L("MoaviDownload"), () => { OpenUrl(dl); return Task.CompletedTask; });
         }
-        tiles.Children.Add(Tile(AppIcons.Login, L("MoaviSignOut"), async () =>
+        userMenu.Items.Add(new Separator());
+        MenuAdd(L("MoaviSignOut"), async () =>
         {
             if (open.Count > 0 && !await DialogHelper.ConfirmAsync(window, L("ConfirmCloseSessions"))) { return; }
             await SignOut();
-        }));
+        });
+
+        btnRefresh.Click += async (_, _) => await Load();
+        navAll.Button.Click += (_, _) => SetFilter("all");
+        navStar.Button.Click += (_, _) => SetFilter("star");
+        navRunning.Button.Click += (_, _) => SetFilter("running");
+        search.TextChanged += (_, _) => Render();
+        sortBox.SelectionChanged += (_, _) => Render();
+        SetFilter("all");
 
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(20) };
         timer.Tick += async (_, _) => await Load();
