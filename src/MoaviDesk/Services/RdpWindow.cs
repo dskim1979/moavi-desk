@@ -30,7 +30,7 @@ internal static class RdpWindow
     ];
 
     /// <summary>moavi-desk.exe --rdp &lt;file&gt; [--title &lt;name&gt;] [--full] [--password-stdin]</summary>
-    public static int Run(string[] args)
+    public static int Run(string[] args, MoaviDesk.Config.AppConfig config)
     {
         string Arg(string name) { var i = Array.IndexOf(args, name); return i >= 0 && i + 1 < args.Length ? args[i + 1] : ""; }
         var file = Arg(Switch);
@@ -43,7 +43,7 @@ internal static class RdpWindow
 
         WF.Application.EnableVisualStyles();
         WF.Application.SetHighDpiMode(WF.HighDpiMode.PerMonitorV2);
-        using var form = new RdpForm(Parse(rdp), title, password, args.Contains("--full"));
+        using var form = new RdpForm(Parse(rdp), title, password, args.Contains("--full"), config);
         WF.Application.Run(form);
         return form.ExitCode;
     }
@@ -121,6 +121,7 @@ internal static class RdpWindow
         private readonly string _name;
         private readonly string? _password;
         private readonly bool _full;
+        private readonly MoaviDesk.Config.AppConfig _config;
         private readonly WF.Label _status;
         private readonly WF.Timer _watch = new() { Interval = 500 };
         private readonly WF.Timer _resize = new() { Interval = 400 };
@@ -131,12 +132,13 @@ internal static class RdpWindow
 
         public int ExitCode { get; private set; }
 
-        public RdpForm(Dictionary<string, string> settings, string name, string? password, bool full)
+        public RdpForm(Dictionary<string, string> settings, string name, string? password, bool full, MoaviDesk.Config.AppConfig config)
         {
             _s = settings;
             _name = name.Length > 0 ? name : "MOAVI Desk";
             _password = password;
             _full = full;
+            _config = config;
             Text = $"{_name} - MOAVI Desk";
             BackColor = SD.Color.Black;
             StartPosition = WF.FormStartPosition.CenterScreen;
@@ -225,7 +227,7 @@ internal static class RdpWindow
             if (S("domain").Length > 0) { r.Domain = S("domain"); }
             r.FullScreenTitle = $"{_name} - MOAVI Desk";
             r.ConnectingText = L("RdpConnecting");
-            r.ColorDepth = int.TryParse(S("session bpp", "32"), out var bpp) ? bpp : 32;
+            r.ColorDepth = _config.RdpColorDepth is 32 or 24 or 16 or 15 ? _config.RdpColorDepth : 32;   // Settings › RDP
             var size = _host!.ClientSize;
             r.DesktopWidth = Math.Max(800, size.Width);
             r.DesktopHeight = Math.Max(600, size.Height);
@@ -236,13 +238,16 @@ internal static class RdpWindow
             r.AdvancedSettings2.RedirectSmartCards = On("redirectsmartcards");
             r.AdvancedSettings2.RedirectPorts = On("redirectcomports");
             r.AdvancedSettings6.RedirectClipboard = On("redirectclipboard", true);
-            r.SecuredSettings2.AudioRedirectionMode = int.TryParse(S("audiomode", "0"), out var audio) ? audio : 0;
+            r.SecuredSettings2.AudioRedirectionMode = _config.RdpAudio switch { "remote" => 1, "off" => 2, _ => 0 };
+            try { r.AdvancedSettings8.AudioCaptureRedirectionMode = _config.RdpMicrophone; } catch { }
             r.AdvancedSettings5.AuthenticationLevel = int.TryParse(S("authentication level", "2"), out var auth) ? auth : 2;
             r.AdvancedSettings.Compress = 1;
             r.AdvancedSettings2.BitmapPeristence = 1;
             r.AdvancedSettings2.DisplayConnectionBar = true;
             r.AdvancedSettings2.EnableAutoReconnect = true;
-            try { r.AdvancedSettings8.NetworkConnectionType = 7; } catch { }        // auto-detect: UDP, H.264 when offered
+            // auto measures the link and picks UDP and H.264 when offered; the others pin the experience level
+            var net = _config.RdpNetwork switch { "lan" => 6, "broadband" => 4, "wan" => 5, _ => 7 };
+            try { r.AdvancedSettings8.NetworkConnectionType = net; } catch { }
             try { r.AdvancedSettings9.BandwidthDetection = true; } catch { }
 
             var gateway = S("gatewayhostname");
@@ -274,11 +279,15 @@ internal static class RdpWindow
                 if (!_wasConnected)
                 {
                     _wasConnected = true;
-                    _status.Text = L("RdpConnected");
                     if (_full) { GoFullScreen(); }
+                    FitSession();
                 }
+                _status.Text = L("RdpConnected");
+                _status.ForeColor = Muted;
                 return;
             }
+            // the control reconnects by itself after a dropped link (EnableAutoReconnect)
+            if (state == 2 && _wasConnected) { _status.Text = L("RdpReconnecting"); _status.ForeColor = SD.ColorTranslator.FromHtml("#F0A35E"); return; }
             if (state == 0 && !_closing)
             {
                 _watch.Stop();
@@ -302,7 +311,9 @@ internal static class RdpWindow
             if (_rdp is null || _host is null) { return; }
             var s = _host.ClientSize;
             if (s.Width < 200 || s.Height < 200) { return; }
-            try { _rdp.UpdateSessionDisplaySettings((uint)s.Width, (uint)s.Height, (uint)s.Width, (uint)s.Height, 0u, 100u, 100u); }
+            var scale = (uint)(_config.RdpScale is >= 100 and <= 500 ? _config.RdpScale : Math.Clamp(DeviceDpi * 100 / 96, 100, 500));
+            var device = scale >= 175 ? 180u : scale >= 125 ? 140u : 100u;
+            try { _rdp.UpdateSessionDisplaySettings((uint)s.Width, (uint)s.Height, (uint)s.Width, (uint)s.Height, 0u, scale, device); }
             catch { /* older control or the desktop does not resize: it keeps its size */ }
         }
 

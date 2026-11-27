@@ -25,6 +25,8 @@ internal static class LoginWindow
         ("en", "English"),
     ];
 
+    private static bool _autoTried;
+
     public static Window Create(AppConfig config)
     {
         var window = new Window
@@ -79,6 +81,13 @@ internal static class LoginWindow
         var txtUser = UiHelper.TextBox(config.LastUser, L("Username"), AppIcons.Account);
         var txtPassword = UiHelper.TextBox(watermark: L("Password"), iconData: AppIcons.Lock);
         txtPassword.PasswordChar = '●';
+        // a kept password (DPAPI, this Windows user) fills the field; a LAB PC or a kiosk never keeps one
+        var kept = PasswordVault.Read(config);
+        if (kept is not null) { txtPassword.Text = kept; }
+        var chkRemember = new CheckBox { Content = L("RememberPassword"), IsChecked = config.RememberPassword, IsVisible = !config.IsSharedPc };
+        var chkAuto = new CheckBox { Content = L("AutoSignIn"), IsChecked = config.AutoSignIn, IsVisible = !config.IsSharedPc };
+        chkAuto.IsCheckedChanged += (_, _) => { if (chkAuto.IsChecked == true) { chkRemember.IsChecked = true; } };
+        chkRemember.IsCheckedChanged += (_, _) => { if (chkRemember.IsChecked != true) { chkAuto.IsChecked = false; } };
         var txtOtp = UiHelper.TextBox(watermark: L("OtpWatermark"), iconData: AppIcons.Key);
         var otpLabel = Label(L("OtpLabel"));
         otpLabel.IsVisible = txtOtp.IsVisible = false;
@@ -163,6 +172,7 @@ internal static class LoginWindow
                     enrollText,
                     Label(L("Username")), txtUser,
                     Label(L("Password")), txtPassword,
+                    new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Children = { chkRemember, chkAuto } },
                     otpLabel, txtOtp,
                     lblError,
                     progress,
@@ -299,7 +309,11 @@ internal static class LoginWindow
                         txtOtp.Focus();
                         api.Dispose();
                         return;
-                    case LoginResult.Invalid: Fail(L("MoaviErrInvalid")); api.Dispose(); return;
+                    case LoginResult.Invalid:
+                        Fail(L("MoaviErrInvalid"));
+                        if (config.SavedPassword.Length > 0) { PasswordVault.Forget(config); AppConfigManager.Save(config); }
+                        api.Dispose();
+                        return;
                     case LoginResult.Locked: Fail(L("MoaviErrLocked")); api.Dispose(); return;
                     case LoginResult.Network:
                         Fail(L("MoaviServerOffline"));
@@ -311,6 +325,9 @@ internal static class LoginWindow
                 }
 
                 config.LastUser = user;
+                config.RememberPassword = chkRemember.IsChecked == true && !config.IsSharedPc;
+                config.AutoSignIn = chkAuto.IsChecked == true && config.RememberPassword;
+                PasswordVault.Keep(config, txtPassword.Text!);
                 AppConfigManager.Save(config);
 
                 var clientConfig = await api.ClientConfigAsync();
@@ -360,6 +377,13 @@ internal static class LoginWindow
             else { txtPassword.Focus(); }
             probeTimer.Start();
             await Probe();
+            // sign in by itself once per start - not again after signing out
+            if (!_autoTried && config.AutoSignIn && kept is not null && txtUser.Text?.Length > 0)
+            {
+                _autoTried = true;
+                await SignIn();
+            }
+            _autoTried = true;
         };
 
         return window;

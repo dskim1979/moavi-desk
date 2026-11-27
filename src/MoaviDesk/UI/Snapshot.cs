@@ -37,6 +37,13 @@ internal static class Snapshot
                     .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Delay(7000);
             Save(settings, System.IO.Path.Combine(dir, "settings.png"));
+            foreach (var (n, file) in new[] { (1, "settings-general.png"), (2, "settings-rdp.png") })
+            {
+                settings.GetLogicalDescendants().OfType<Button>().First(b => b.Name == $"Section{n}")
+                        .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await Task.Delay(600);
+                Save(settings, System.IO.Path.Combine(dir, file));
+            }
             lifetime.Shutdown();
         };
         lifetime.MainWindow = login;

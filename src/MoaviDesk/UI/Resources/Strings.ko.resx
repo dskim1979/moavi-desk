@@ -125,4 +125,26 @@
   <data name="RdpCtrlAltDel" xml:space="preserve"><value>Ctrl+Alt+Del</value></data>
   <data name="RdpFullScreen" xml:space="preserve"><value>전체 화면</value></data>
   <data name="RdpDisconnect" xml:space="preserve"><value>연결 끊기</value></data>
+  <data name="RememberPassword" xml:space="preserve"><value>비밀번호 저장</value></data>
+  <data name="AutoSignIn" xml:space="preserve"><value>자동 로그인</value></data>
+  <data name="AutoConnect" xml:space="preserve"><value>로그인하면 즐겨찾기 데스크톱(하나뿐이면 그것)에 바로 접속</value></data>
+  <data name="FavoriteAdd" xml:space="preserve"><value>즐겨찾기</value></data>
+  <data name="FavoriteRemove" xml:space="preserve"><value>즐겨찾기 해제</value></data>
+  <data name="SectionGeneral" xml:space="preserve"><value>일반</value></data>
+  <data name="SectionLabKiosk" xml:space="preserve"><value>LAB · 키오스크</value></data>
+  <data name="SectionAbout" xml:space="preserve"><value>정보</value></data>
+  <data name="DefaultProtocol" xml:space="preserve"><value>기본 접속 방식</value></data>
+  <data name="RdpColorDepth" xml:space="preserve"><value>색 깊이</value></data>
+  <data name="RdpAudio" xml:space="preserve"><value>소리</value></data>
+  <data name="RdpAudioLocal" xml:space="preserve"><value>이 PC에서 재생</value></data>
+  <data name="RdpAudioRemote" xml:space="preserve"><value>데스크톱에서 재생</value></data>
+  <data name="RdpAudioOff" xml:space="preserve"><value>끔</value></data>
+  <data name="RdpMicrophone" xml:space="preserve"><value>마이크 연결</value></data>
+  <data name="RdpScale" xml:space="preserve"><value>화면 배율</value></data>
+  <data name="RdpScaleAuto" xml:space="preserve"><value>자동(이 PC 설정)</value></data>
+  <data name="RdpNetwork" xml:space="preserve"><value>네트워크</value></data>
+  <data name="RdpNetAuto" xml:space="preserve"><value>자동 감지</value></data>
+  <data name="RdpNetBroadband" xml:space="preserve"><value>광대역</value></data>
+  <data name="RdpPolicyNote" xml:space="preserve"><value>드라이브 · 프린터 · 클립보드 · USB는 풀 정책을 따릅니다.</value></data>
+  <data name="RdpReconnecting" xml:space="preserve"><value>다시 연결 중…</value></data>
 </root>

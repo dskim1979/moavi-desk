@@ -4,6 +4,7 @@
  */
 
 using System.Diagnostics;
+using Avalonia.VisualTree;
 using MoaviDesk.Config;
 using MoaviDesk.Services;
 using MoaviDesk.UI.Helpers;
@@ -68,10 +69,16 @@ internal static class MainWindow
         var btnRefresh = GhostButton(L("Refresh"), AppIcons.Refresh);
         var btnSupport = GhostButton(L("MoaviRemoteSupport"), AppIcons.Info);
         var btnSignOut = GhostButton(L("MoaviSignOut"), AppIcons.Login);
+        var btnSettings = GhostButton(L("Settings"), AppIcons.Settings);
+        btnSettings.Click += async (_, _) =>
+        {
+            if (!await KioskGuard.CheckAsync(window, config)) { return; }
+            await SettingsWindow.Create(config).ShowDialog(window);
+        };
         var supportUrl = clientConfig?.SupportUrl is { Length: > 0 } s ? s : DefaultSupportUrl;
         btnSupport.Click += (_, _) => OpenUrl(supportUrl);
 
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { btnRefresh, btnSupport, btnSignOut } };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { btnRefresh, btnSettings, btnSupport, btnSignOut } };
         if (updateText is not null && clientConfig?.DownloadUrl is { Length: > 0 } dl)
         {
             var btnUpdate = GhostButton(L("MoaviDownload"), AppIcons.Update);
@@ -125,14 +132,25 @@ internal static class MainWindow
         dock.Children.Add(new ScrollViewer { Content = body });
         window.Content = dock;
 
+        var connectors = new Dictionary<string, Func<Task>>();
+        var autoConnected = false;
+
         async Task Load()
         {
             try
             {
                 var list = await api.DesktopsAsync();
                 cards.Children.Clear();
-                foreach (var d in list) { cards.Children.Add(Card(d)); }
+                connectors.Clear();
+                foreach (var d in list.OrderByDescending(x => x.Id == config.FavoriteDesktop)) { cards.Children.Add(Card(d)); }
                 empty.IsVisible = list.Count == 0;
+                // 자동 접속: the starred desktop, else the only one - once per sign-in
+                if (!autoConnected && config.AutoConnect && !config.IsSharedPc)
+                {
+                    autoConnected = true;
+                    var pick = list.FirstOrDefault(x => x.Id == config.FavoriteDesktop) ?? (list.Count == 1 ? list[0] : null);
+                    if (pick is not null && connectors.TryGetValue(pick.Id, out var go)) { await go(); }
+                }
                 // Researcher native SSH: keep the managed ~/.ssh/config block in sync with the
                 // Warpgate SSH-enabled desktops (no-op, and clears a stale block, when off). Best effort.
                 try { await SshConfigSync.SyncAsync(api); } catch { /* own-tools SSH is optional */ }
@@ -200,8 +218,9 @@ internal static class MainWindow
             }
             btnPower.Flyout = menu;
 
-            btnConnect.Click += async (_, _) =>
+            async Task Connect()
             {
+                if (!btnConnect.IsEnabled) { return; }
                 btnConnect.IsEnabled = false;
                 try
                 {
@@ -237,16 +256,30 @@ internal static class MainWindow
                 }
                 catch (DeskApiException ex) { Notice(ex.Message, Danger); }
                 finally { btnConnect.IsEnabled = true; }
+            }
+            btnConnect.Click += async (_, _) => await Connect();
+            if (btnConnect.IsEnabled) { connectors[d.Id] = Connect; }
+
+            // the star: one desktop at a time, shown first and opened by 자동 접속
+            var starred = d.Id == config.FavoriteDesktop;
+            var btnStar = UiHelper.IconButton(AppIcons.Star, "Favorite", foregroundColor: starred ? Warn : Muted);
+            ToolTip.SetTip(btnStar, L(starred ? "FavoriteRemove" : "FavoriteAdd"));
+            btnStar.Click += async (_, _) =>
+            {
+                config.FavoriteDesktop = starred ? string.Empty : d.Id;
+                AppConfigManager.Save(config);
+                await Load();
             };
 
             var stateDot = new Ellipse { Width = 8, Height = 8, Fill = B(stateColor), VerticalAlignment = VerticalAlignment.Center };
 
-            return new Border
+            var card = new Border
             {
                 Width = 300,
                 Margin = new Thickness(0, 0, 14, 14),
                 Background = B(Surface),
-                BorderBrush = B(Edge),
+                BorderBrush = B(starred ? Accent : Edge),
+                Cursor = btnConnect.IsEnabled ? new Cursor(StandardCursorType.Hand) : Cursor.Default,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(12),
                 Padding = new Thickness(16),
@@ -271,7 +304,7 @@ internal static class MainWindow
                                     VerticalAlignment = VerticalAlignment.Center,
                                     TextTrimming = TextTrimming.CharacterEllipsis
                                 }, 1),
-                                WithColumn(btnPower, 2)
+                                WithColumn(new StackPanel { Orientation = Orientation.Horizontal, Children = { btnStar, btnPower } }, 2)
                             }
                         },
                         new TextBlock { Text = d.Pool, Foreground = B(Muted), FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis },
@@ -291,6 +324,19 @@ internal static class MainWindow
                     }
                 }
             };
+            // a click anywhere on the card opens it (the buttons and the protocol list keep their own)
+            card.PointerReleased += async (_, e) =>
+            {
+                if (e.InitialPressMouseButton != MouseButton.Left) { return; }
+                for (var v = e.Source as Visual; v is not null && v != card; v = v.GetVisualParent())
+                {
+                    if (v is Button or ComboBox) { return; }
+                }
+                await Connect();
+            };
+            card.PointerEntered += (_, _) => { if (!starred) { card.BorderBrush = B(Accent); } };
+            card.PointerExited += (_, _) => { if (!starred) { card.BorderBrush = B(Edge); } };
+            return card;
         }
 
         static Control WithColumn(Control c, int column, Thickness? margin = null)

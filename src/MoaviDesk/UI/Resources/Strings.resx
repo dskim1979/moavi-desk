@@ -145,4 +145,26 @@ Open-source notices: LICENSE.md and 3rd-party-licenses.md in the install folder.
   <data name="RdpCtrlAltDel"><value>Ctrl+Alt+Del</value></data>
   <data name="RdpFullScreen"><value>Full screen</value></data>
   <data name="RdpDisconnect"><value>Disconnect</value></data>
+  <data name="RememberPassword"><value>Remember password</value></data>
+  <data name="AutoSignIn"><value>Sign in automatically</value></data>
+  <data name="AutoConnect"><value>After signing in, open the starred desktop (or the only one)</value></data>
+  <data name="FavoriteAdd"><value>Star</value></data>
+  <data name="FavoriteRemove"><value>Unstar</value></data>
+  <data name="SectionGeneral"><value>General</value></data>
+  <data name="SectionLabKiosk"><value>LAB · Kiosk</value></data>
+  <data name="SectionAbout"><value>About</value></data>
+  <data name="DefaultProtocol"><value>Default connection</value></data>
+  <data name="RdpColorDepth"><value>Colour depth</value></data>
+  <data name="RdpAudio"><value>Sound</value></data>
+  <data name="RdpAudioLocal"><value>Play on this PC</value></data>
+  <data name="RdpAudioRemote"><value>Play on the desktop</value></data>
+  <data name="RdpAudioOff"><value>Off</value></data>
+  <data name="RdpMicrophone"><value>Use the microphone</value></data>
+  <data name="RdpScale"><value>Display scale</value></data>
+  <data name="RdpScaleAuto"><value>Auto (this PC)</value></data>
+  <data name="RdpNetwork"><value>Network</value></data>
+  <data name="RdpNetAuto"><value>Detect automatically</value></data>
+  <data name="RdpNetBroadband"><value>Broadband</value></data>
+  <data name="RdpPolicyNote"><value>Drives, printers, clipboard and USB follow the pool policy.</value></data>
+  <data name="RdpReconnecting"><value>Reconnecting…</value></data>
 </root>
