@@ -195,4 +195,6 @@ Open-source notices: LICENSE.md and 3rd-party-licenses.md in the install folder.
   <data name="BackgroundPick"><value>Pick a picture</value></data>
   <data name="BackgroundImages"><value>Pictures</value></data>
   <data name="BackgroundReset"><value>Use the built-in picture</value></data>
+  <data name="WelcomeTitle"><value>Welcome to MOAVI Desk</value></data>
+  <data name="ShowPassword"><value>Show password</value></data>
 </root>

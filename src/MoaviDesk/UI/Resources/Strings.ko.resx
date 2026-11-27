@@ -175,4 +175,6 @@
   <data name="BackgroundPick" xml:space="preserve"><value>배경 이미지 고르기</value></data>
   <data name="BackgroundImages" xml:space="preserve"><value>이미지</value></data>
   <data name="BackgroundReset" xml:space="preserve"><value>기본 배경으로</value></data>
+  <data name="WelcomeTitle" xml:space="preserve"><value>MOAVI Desk에 오신 것을 환영합니다</value></data>
+  <data name="ShowPassword" xml:space="preserve"><value>비밀번호 보기</value></data>
 </root>
