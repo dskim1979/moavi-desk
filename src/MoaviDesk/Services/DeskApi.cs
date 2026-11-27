@@ -203,7 +203,9 @@ internal sealed class DeskApi : IDisposable
             using var r = await http.GetAsync(new Uri(NormalizeServer(serverUrl), "api/auth/check"));
             sw.Stop();
             var d = await ReadJsonAsync(r);
-            return r.IsSuccessStatusCode && d.ValueKind == JsonValueKind.Object && d.TryGetProperty("authenticated", out _)
+            // signed out, the engine answers 401 with {"authenticated": false} - that is still the engine
+            var answered = r.IsSuccessStatusCode || r.StatusCode == HttpStatusCode.Unauthorized;
+            return answered && d.ValueKind == JsonValueKind.Object && d.TryGetProperty("authenticated", out _)
                     ? (true, sw.ElapsedMilliseconds, "")
                     : (false, sw.ElapsedMilliseconds, L("MoaviTestNotEngine"));
         }
