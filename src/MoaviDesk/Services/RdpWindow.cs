@@ -62,10 +62,14 @@ internal static class RdpWindow
         return d;
     }
 
-    /// <summary>True when the control can open this file. An RD Gateway with an access token
-    /// (the bundled rdpgw) is mstsc-only: the control has no way to take the token.</summary>
+    /// <summary>True when the control can open this file. Two things only Windows' own Remote Desktop
+    /// app (mstsc) does, so such a file opens there: an RD Gateway with an access token (the bundled
+    /// rdpgw), and the pool's USB / camera redirection (RemoteFX USB, usbdevicestoredirect /
+    /// camerastoredirect - the engine writes them only when the pool policy and USB 정책 allow USB).</summary>
     public static bool CanEmbed(Dictionary<string, string> s)
-        => !s.TryGetValue("gatewayaccesstoken", out var t) || t.Length == 0;
+        => !Has(s, "gatewayaccesstoken") && !Has(s, "usbdevicestoredirect") && !Has(s, "camerastoredirect");
+
+    private static bool Has(Dictionary<string, string> s, string key) => s.TryGetValue(key, out var v) && v.Trim().Length > 0;
 
     private static readonly System.Drawing.Text.PrivateFontCollection Fonts = LoadFonts();
 
@@ -294,6 +298,10 @@ internal static class RdpWindow
                 ns.SetPromptForCredentials(0);
             }
             ns.SetShowRedirectionWarningDialog(0);
+            // drives the policy allows: a USB stick or disk plugged in during the session shows up too
+            if (S("drivestoredirect").Length > 0 || On("redirectdrives")) { ns.SetRedirectDynamicDrives(1); }
+            // plug-and-play devices (phones, cameras as MTP/PTP) when the file allows devices
+            if (S("devicestoredirect").Length > 0) { ns.SetRedirectDynamicDevices(1); }
         }
 
         private void Watch()
