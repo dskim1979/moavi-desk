@@ -21,6 +21,65 @@ internal sealed class DeskInfo
     public string? Os { get; set; }
     public DeskSpec? Spec { get; set; }
     public List<string> Protocols { get; set; } = [];
+    /// <summary>Who is signed in right now (guest agent); null when it cannot be told.</summary>
+    [JsonPropertyName("signed_in")] public List<SignedInUser>? SignedIn { get; set; }
+    [JsonPropertyName("last_connected")] public string? LastConnected { get; set; }
+    [JsonPropertyName("pool_type")] public string? PoolType { get; set; }
+    public List<DeskResource>? Resources { get; set; }
+    public DeskPolicy? Policy { get; set; }
+    public DeskStorage? Storage { get; set; }
+}
+
+internal sealed class SignedInUser
+{
+    public string User { get; set; } = "";
+    public string? Domain { get; set; }
+    [JsonPropertyName("login_time")] public double? LoginTime { get; set; }
+}
+
+internal sealed class DeskResource
+{
+    public string Kind { get; set; } = "";
+    public string Name { get; set; } = "";
+}
+
+internal sealed class DeskPolicy
+{
+    public string? Clipboard { get; set; }
+    [JsonPropertyName("allow_power")] public bool AllowPower { get; set; } = true;
+    [JsonPropertyName("screen_thumbnail")] public bool? ScreenThumbnail { get; set; }
+}
+
+/// <summary>공유 저장소: the user's folders on the pool's NAS (home / project / scratch).</summary>
+internal sealed class DeskStorage
+{
+    public string Kind { get; set; } = "";
+    public Dictionary<string, StorageFolder> Folders { get; set; } = [];
+    public bool? Ok { get; set; }
+}
+
+internal sealed class StorageFolder
+{
+    public string? Linux { get; set; }
+    public string? Windows { get; set; }
+    [JsonPropertyName("quota_gb")] public double? QuotaGb { get; set; }
+}
+
+/// <summary>A card, USB device or desktop the user has on loan (GET /api/vlab/me/leases).</summary>
+internal sealed class LeaseInfo
+{
+    public string Kind { get; set; } = "";
+    public string Name { get; set; } = "";
+    [JsonPropertyName("ends_at")] public string? EndsAt { get; set; }
+    public string? Desktop { get; set; }
+}
+
+/// <summary>A notice from the administrators (GET /api/vlab/banners).</summary>
+internal sealed class BannerInfo
+{
+    public string Id { get; set; } = "";
+    public string Text { get; set; } = "";
+    public string Severity { get; set; } = "info";
 }
 
 internal sealed class DeskSpec
@@ -125,6 +184,9 @@ internal sealed class DeskApi : IDisposable
 #if DEBUG
     /// <summary>Debug builds only: UI/Snapshot.cs renders the main window with these desktops.</summary>
     public List<DeskInfo>? SnapshotDesktops { get; set; }
+    public Func<string, byte[]?>? SnapshotShot { get; set; }
+    public List<LeaseInfo>? SnapshotLeases { get; set; }
+    public List<BannerInfo>? SnapshotBanners { get; set; }
     public void SnapshotUser(string name) => Username = name;
 #endif
 
@@ -281,6 +343,49 @@ internal sealed class DeskApi : IDisposable
 
     public Task PowerAsync(string desktopId, string action)
         => SendAsync(HttpMethod.Post, $"api/vlab/desktops/{Uri.EscapeDataString(desktopId)}/power", new { action });
+
+    /// <summary>The desktop's screen as the portal card shows it: (PNG, false), (null, true) when the
+    /// display is on but black, (null, false) when there is no picture (stopped, off for the pool, failed).</summary>
+    public async Task<(byte[]? Png, bool Off)> ScreenshotAsync(string desktopId)
+    {
+#if DEBUG
+        if (SnapshotShot is not null) { return (SnapshotShot(desktopId), false); }
+#endif
+        try
+        {
+            using var r = await _http.GetAsync($"api/vlab/desktops/{Uri.EscapeDataString(desktopId)}/screenshot");
+            if (r.StatusCode == HttpStatusCode.OK) { return (await r.Content.ReadAsByteArrayAsync(), false); }
+            var off = r.Headers.TryGetValues("X-Screen", out var v) && v.Contains("off");
+            return (null, off);
+        }
+        catch { return (null, false); }
+    }
+
+    public async Task<List<LeaseInfo>> LeasesAsync()
+    {
+#if DEBUG
+        if (SnapshotDesktops is not null) { return SnapshotLeases ?? []; }
+#endif
+        try
+        {
+            var d = await SendAsync(HttpMethod.Get, "api/vlab/me/leases");
+            return d.TryGetProperty("leases", out var list) ? list.Deserialize<List<LeaseInfo>>(Json) ?? [] : [];
+        }
+        catch (DeskApiException) { return []; }
+    }
+
+    public async Task<List<BannerInfo>> BannersAsync()
+    {
+#if DEBUG
+        if (SnapshotDesktops is not null) { return SnapshotBanners ?? []; }
+#endif
+        try
+        {
+            var d = await SendAsync(HttpMethod.Get, "api/vlab/banners");
+            return d.TryGetProperty("banners", out var list) ? list.Deserialize<List<BannerInfo>>(Json) ?? [] : [];
+        }
+        catch (DeskApiException) { return []; }
+    }
 
     /// <summary>Researcher native SSH: the user's ~/.ssh/config entries through Warpgate, or
     /// Enabled=false when Warpgate is off / the engine predates it.</summary>

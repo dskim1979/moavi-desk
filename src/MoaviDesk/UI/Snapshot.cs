@@ -51,10 +51,34 @@ internal static class Snapshot
             api.SnapshotUser("ohjihoon");
             api.SnapshotDesktops =
             [
-                new() { Id = "a", Name = "업무용PC-34", Pool = "일반 업무", State = "running", Os = "Windows 11", Protocols = ["rdp", "spice"], Spec = new() { Cpu = 4, MemoryGb = 8 } },
-                new() { Id = "b", Name = "연구원-GPU-02", Pool = "연구원 GPU", State = "stopped", Os = "Windows 11", Protocols = ["rdp"], Spec = new() { Cpu = 8, MemoryGb = 32, Gpu = "NVIDIA L4" } },
-                new() { Id = "c", Name = "ubuntu-build-01", Pool = "빌드 팜", State = "ready", Os = "Ubuntu 24.04", Protocols = ["spice", "vnc"], Spec = new() { Cpu = 16, MemoryGb = 64 } }
+                new()
+                {
+                    Id = "a", Name = "업무용PC-34", Pool = "일반 업무", State = "running", Os = "Windows 11", Protocols = ["rdp", "spice"], Spec = new() { Cpu = 4, MemoryGb = 8 },
+                    SignedIn = [new() { User = "ohjihoon", LoginTime = DateTimeOffset.Now.AddHours(-2).ToUnixTimeSeconds() }],
+                    LastConnected = DateTimeOffset.Now.AddHours(-2).ToString("o"),
+                    Policy = new() { Clipboard = "both" },
+                    Storage = new()
+                    {
+                        Kind = "smb",
+                        Folders = new()
+                        {
+                            ["home"] = new() { Windows = @"\\nas01\home\ohjihoon", Linux = "/mnt/home", QuotaGb = 50 },
+                            ["project"] = new() { Windows = @"\\nas01\project\design", Linux = "/mnt/project", QuotaGb = 500 }
+                        }
+                    }
+                },
+                new() { Id = "b", Name = "연구원-GPU-02", Pool = "연구원 GPU", State = "stopped", Os = "Windows 11", Protocols = ["rdp"], Spec = new() { Cpu = 8, MemoryGb = 32, Gpu = "NVIDIA L4" },
+                        LastConnected = DateTimeOffset.Now.AddDays(-3).ToString("o"), Resources = [new() { Kind = "card", Name = "NVIDIA L4 #1" }] },
+                new() { Id = "c", Name = "ubuntu-build-01", Pool = "빌드 팜", State = "ready", Os = "Ubuntu 24.04", Protocols = ["spice", "vnc"], Spec = new() { Cpu = 16, MemoryGb = 64 },
+                        Policy = new() { AllowPower = false } }
             ];
+            // a picture stands in for the Windows desktop's screen
+            byte[] sample;
+            using (var s = Avalonia.Platform.AssetLoader.Open(new Uri("avares://moavi-desk/Backgrounds/thumbs/2.jpg")))
+            using (var ms = new MemoryStream()) { s.CopyTo(ms); sample = ms.ToArray(); }
+            api.SnapshotShot = id => id == "a" ? sample : null;
+            api.SnapshotLeases = [new() { Kind = "usb", Name = "Xilinx JTAG 케이블", EndsAt = DateTimeOffset.Now.AddHours(5).ToString("o"), Desktop = "업무용PC-34" }];
+            api.SnapshotBanners = [new() { Id = "n1", Text = "11월 30일(토) 02:00~06:00 정기 점검으로 데스크톱 접속이 끊깁니다.", Severity = "warning" }];
             var main = MainWindow.Create(config, api, null, null);
             main.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             main.Show();

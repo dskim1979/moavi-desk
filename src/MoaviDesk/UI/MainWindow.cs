@@ -4,6 +4,7 @@
  */
 
 using System.Diagnostics;
+using Avalonia.Media.Imaging;
 using MoaviDesk.Config;
 using MoaviDesk.Services;
 using MoaviDesk.UI.Helpers;
@@ -35,7 +36,7 @@ internal static class MainWindow
         var window = new Window
         {
             Title = $"{Product} · {api.Username}",
-            Width = 1180,
+            Width = 1320,
             Height = 720,
             MinWidth = 860,
             MinHeight = 520,
@@ -53,6 +54,12 @@ internal static class MainWindow
         var all = new List<DeskInfo>();
         var filter = "all";
         var serverOk = true;
+        // the screen pictures (as the portal card shows them), the selected tile, loans and notices
+        var shots = new Dictionary<string, (Bitmap? Image, bool Off)>();
+        string? selectedId = null;
+        var leases = new List<LeaseInfo>();
+        var banners = new List<BannerInfo>();
+        DateTime? refreshedAt = null;
 
         static T Col<T>(T c, int column) where T : Control { Grid.SetColumn(c, column); return c; }
         static T Docked<T>(T c, Dock dock) where T : Control { DockPanel.SetDock(c, dock); return c; }
@@ -68,10 +75,18 @@ internal static class MainWindow
             IsVisible = false,
             Child = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Children = { infoText, Col(infoClose, 1) } }
         };
-        infoClose.Click += (_, _) => infoBar.IsVisible = false;
+        // a closed notice stays closed for this sign-in
+        var dismissed = new HashSet<string>();
+        string? shownBanner = null;
+        infoClose.Click += (_, _) =>
+        {
+            infoBar.IsVisible = false;
+            if (shownBanner is not null) { dismissed.Add(shownBanner); shownBanner = null; }
+        };
         void Notice(string? text, Color? tone = null)
         {
             infoText.Text = text ?? "";
+            shownBanner = null;
             var c = tone ?? Accent;
             infoBar.Background = B(Color.FromArgb(0xF2, (byte)(255 - ((255 - c.R) / 8)), (byte)(255 - ((255 - c.G) / 8)), (byte)(255 - ((255 - c.B) / 8))));
             infoBar.IsVisible = !string.IsNullOrEmpty(text);
@@ -189,6 +204,33 @@ internal static class MainWindow
         var navAll = NavItem(AppIcons.ViewGrid, L("NavAll"));
         var navStar = NavItem(AppIcons.Star, L("NavStarred"));
         var navRunning = NavItem(AppIcons.Play, L("NavRunning"));
+        var navRecent = NavItem(AppIcons.Clock, L("NavRecent"));
+
+        TextBlock RailHeading(string key) => new()
+        {
+            Text = L(key), FontSize = 11, FontWeight = FontWeight.SemiBold, LetterSpacing = 0.6,
+            Foreground = B(Subtle), Margin = new Thickness(10, 18, 0, 6)
+        };
+        // 대여 중: cards, USB devices and desktops on loan, with when they go back
+        var leaseList = new StackPanel { Spacing = 2 };
+        var leaseHeading = RailHeading("RailLeases");
+        // 바로 가기: the web portal and remote support
+        Button RailLink(string icon, string key, Action act)
+        {
+            var b = new Button
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10, 7),
+                Content = UiHelper.WithText(icon, L(key), B(Ink))
+            };
+            b.Click += (_, _) => act();
+            return b;
+        }
+        var supportUrl = clientConfig?.SupportUrl is { Length: > 0 } s ? s : DefaultSupportUrl;
 
         var rail = new Border
         {
@@ -197,13 +239,20 @@ internal static class MainWindow
             BorderBrush = B(Hair),
             BorderThickness = new Thickness(0, 0, 1, 0),
             Padding = new Thickness(10, 16),
-            Child = new StackPanel
+            Child = new ScrollViewer
             {
-                Spacing = 2,
-                Children =
+                Content = new StackPanel
                 {
-                    new TextBlock { Text = L("NavHeading"), FontSize = 11, FontWeight = FontWeight.SemiBold, LetterSpacing = 0.6, Foreground = B(Subtle), Margin = new Thickness(10, 0, 0, 8) },
-                    navAll.Button, navStar.Button, navRunning.Button
+                    Spacing = 2,
+                    Children =
+                    {
+                        new TextBlock { Text = L("NavHeading"), FontSize = 11, FontWeight = FontWeight.SemiBold, LetterSpacing = 0.6, Foreground = B(Subtle), Margin = new Thickness(10, 0, 0, 8) },
+                        navAll.Button, navStar.Button, navRunning.Button, navRecent.Button,
+                        leaseHeading, leaseList,
+                        RailHeading("RailLinks"),
+                        RailLink(AppIcons.Web, "TilePortal", () => OpenUrl(api.BaseUri.ToString())),
+                        RailLink(AppIcons.Info, "TileSupport", () => OpenUrl(supportUrl))
+                    }
                 }
             }
         };
@@ -212,7 +261,7 @@ internal static class MainWindow
         var heading = new TextBlock { FontSize = 18, FontWeight = FontWeight.SemiBold, Foreground = B(Ink), VerticalAlignment = VerticalAlignment.Center };
         var sortBox = new ComboBox
         {
-            ItemsSource = new[] { L("SortName"), L("SortState") },
+            ItemsSource = new[] { L("SortName"), L("SortState"), L("SortRecent") },
             SelectedIndex = 0,
             MinWidth = 120,
             FontSize = 12.5
@@ -272,8 +321,20 @@ internal static class MainWindow
             }
         };
 
+        // --- the selected desktop: its details, shared folders and actions -------------------------
+        var detail = new StackPanel { Spacing = 14 };
+        var detailPane = new Border
+        {
+            Width = 300,
+            Background = B(Panel),
+            BorderBrush = B(Hair),
+            BorderThickness = new Thickness(1, 0, 0, 0),
+            Child = new ScrollViewer { Content = new Border { Padding = new Thickness(18, 18, 16, 18), Child = detail } }
+        };
+
         var body = new DockPanel();
         body.Children.Add(Docked(rail, Dock.Left));
+        body.Children.Add(Docked(detailPane, Dock.Right));
         body.Children.Add(content);
         var root = new DockPanel();
         root.Children.Add(Docked(appBar, Dock.Top));
@@ -287,7 +348,189 @@ internal static class MainWindow
         {
             statusDot.Fill = B(serverOk ? Ok : Danger);
             statusText.Text = serverOk ? string.Format(L("StatusConnected"), api.BaseUri.Host) : L("MoaviServerOffline");
-            sessionsText.Text = open.Count > 0 ? string.Format(L("StatusSessions"), open.Count) : "";
+            var parts = new List<string>();
+            if (open.Count > 0) { parts.Add(string.Format(L("StatusSessions"), open.Count)); }
+            if (refreshedAt is { } at) { parts.Add(string.Format(L("StatusUpdated"), at.ToString("HH:mm:ss"))); }
+            sessionsText.Text = string.Join("   ·   ", parts);
+        }
+
+        // "3시간 전" from an ISO time or epoch seconds
+        static DateTimeOffset? When(string? iso) => DateTimeOffset.TryParse(iso, out var t) ? t : null;
+        static string Ago(DateTimeOffset t)
+        {
+            var d = DateTimeOffset.Now - t;
+            if (d.TotalMinutes < 1) { return L("AgoJustNow"); }
+            if (d.TotalHours < 1) { return string.Format(L("AgoMinutes"), (int)d.TotalMinutes); }
+            if (d.TotalDays < 1) { return string.Format(L("AgoHours"), (int)d.TotalHours); }
+            return string.Format(L("AgoDays"), (int)d.TotalDays);
+        }
+        static string? SignedInText(DeskInfo d)
+        {
+            if (d.SignedIn is not { Count: > 0 } who) { return null; }
+            var text = who[0].User + (who.Count > 1 ? $" +{who.Count - 1}" : "");
+            if (who[0].LoginTime is { } lt) { text += " · " + Ago(DateTimeOffset.FromUnixTimeSeconds((long)lt)); }
+            return text;
+        }
+
+        void Copy(string text)
+        {
+            _ = window.Clipboard?.SetTextAsync(text);
+            Notice(string.Format(L("Copied"), text), Accent);
+        }
+
+        void RenderDetail()
+        {
+            detail.Children.Clear();
+            var d = all.FirstOrDefault(x => x.Id == selectedId);
+            if (d is null)
+            {
+                var hint = UiHelper.Icon(AppIcons.Info, 28, B(Color.Parse("#B6C2D2")));
+                hint.HorizontalAlignment = HorizontalAlignment.Center;
+                detail.Children.Add(new StackPanel
+                {
+                    Spacing = 8, Margin = new Thickness(0, 60, 0, 0),
+                    Children =
+                    {
+                        hint,
+                        new TextBlock { Text = L("PanelPick"), FontSize = 12.5, Foreground = B(Subtle), TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap }
+                    }
+                });
+                return;
+            }
+            var (stateText, stateColor) = State(d);
+
+            // the screen, larger
+            if (shots.TryGetValue(d.Id, out var shot) && shot.Image is not null)
+            {
+                detail.Children.Add(new Border
+                {
+                    CornerRadius = new CornerRadius(5), ClipToBounds = true, BorderBrush = B(Hair), BorderThickness = new Thickness(1),
+                    Child = new Image { Source = shot.Image, Stretch = Stretch.Uniform }
+                });
+            }
+            detail.Children.Add(new StackPanel
+            {
+                Spacing = 4,
+                Children =
+                {
+                    new TextBlock { Text = d.Name, FontSize = 16, FontWeight = FontWeight.SemiBold, Foreground = B(Ink), TextWrapping = TextWrapping.Wrap },
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal, Spacing = 6,
+                        Children =
+                        {
+                            new Ellipse { Width = 7, Height = 7, Fill = B(stateColor), VerticalAlignment = VerticalAlignment.Center },
+                            new TextBlock { Text = stateText, FontSize = 12.5, Foreground = B(Soft) }
+                        }
+                    }
+                }
+            });
+
+            Grid Rows(IEnumerable<(string Key, string? Value)> rows)
+            {
+                var g = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), RowSpacing = 7, ColumnSpacing = 14 };
+                var i = 0;
+                foreach (var (key, value) in rows.Where(r => !string.IsNullOrEmpty(r.Value)))
+                {
+                    g.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+                    var k = new TextBlock { Text = L(key), FontSize = 12, Foreground = B(Subtle) };
+                    var v = new TextBlock { Text = value, FontSize = 12, Foreground = B(Ink), TextWrapping = TextWrapping.Wrap };
+                    Grid.SetRow(k, i); Grid.SetRow(v, i); Grid.SetColumn(v, 1);
+                    g.Children.Add(k); g.Children.Add(v);
+                    i++;
+                }
+                return g;
+            }
+            TextBlock Heading(string key) => new()
+            {
+                Text = L(key), FontSize = 11, FontWeight = FontWeight.SemiBold, LetterSpacing = 0.6, Foreground = B(Subtle), Margin = new Thickness(0, 4, 0, 0)
+            };
+
+            var spec = string.Join(" · ", new[]
+            {
+                d.Spec?.Cpu is { } cpu ? $"{cpu} vCPU" : null,
+                d.Spec?.MemoryGb is { } mem ? $"{mem:0.#} GB" : null,
+                d.Spec?.Gpu
+            }.Where(x => !string.IsNullOrEmpty(x)));
+            detail.Children.Add(Heading("PanelDetails"));
+            detail.Children.Add(Rows(
+            [
+                ("RowOs", d.Os),
+                ("RowPool", d.Pool),
+                ("RowSpec", spec),
+                ("DetailProtocols", string.Join(", ", d.Protocols.Select(p => p.ToUpperInvariant()))),
+                ("RowSignedIn", SignedInText(d)),
+                ("RowLast", When(d.LastConnected) is { } lc ? Ago(lc) : null),
+                ("RowClipboard", d.Policy?.Clipboard switch
+                {
+                    "both" => L("ClipBoth"), "to_desktop" => L("ClipIn"), "from_desktop" => L("ClipOut"), "off" => L("ClipOff"), _ => null
+                })
+            ]));
+
+            if (d.Resources is { Count: > 0 } res)
+            {
+                detail.Children.Add(Heading("PanelResources"));
+                foreach (var r in res)
+                {
+                    detail.Children.Add(UiHelper.WithText(r.Kind == "usb" ? AppIcons.Ftp : AppIcons.ChartBar, r.Name, B(Ink)));
+                }
+            }
+
+            // 공유 폴더: the path for this desktop's OS, with a copy button
+            if (d.Storage?.Folders is { Count: > 0 } folders)
+            {
+                detail.Children.Add(Heading("PanelStorage"));
+                var windows = d.Os?.Contains("Windows", StringComparison.OrdinalIgnoreCase) == true;
+                foreach (var (key, f) in folders)
+                {
+                    var path = (windows ? f.Windows : f.Linux) ?? f.Linux ?? f.Windows;
+                    if (string.IsNullOrEmpty(path)) { continue; }
+                    var copy = UiHelper.IconButton(AppIcons.Copy, null, size: 13, foregroundColor: Soft);
+                    ToolTip.SetTip(copy, L("CopyPath"));
+                    copy.Click += (_, _) => Copy(path);
+                    detail.Children.Add(new Grid
+                    {
+                        ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                        Children =
+                        {
+                            new StackPanel
+                            {
+                                Spacing = 1,
+                                Children =
+                                {
+                                    new TextBlock { Text = L("Folder_" + key) + (f.QuotaGb is { } q ? $" · {q:0.#} GB" : ""), FontSize = 12, Foreground = B(Soft) },
+                                    new TextBlock { Text = path, FontSize = 12, Foreground = B(Ink), TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas, monospace") }
+                                }
+                            },
+                            Col(copy, 1)
+                        }
+                    });
+                }
+            }
+
+            // actions
+            var actions = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            Button Act(string key, Func<Task> act, bool primary = false, bool enabled = true)
+            {
+                var b = new Button
+                {
+                    Content = L(key), IsEnabled = enabled, FontSize = 12.5, Padding = new Thickness(12, 5), Margin = new Thickness(0, 0, 6, 6),
+                    CornerRadius = new CornerRadius(4),
+                    Background = primary ? B(Action) : B(Colors.White), Foreground = primary ? B(Colors.White) : B(Ink),
+                    BorderBrush = B(Hair), BorderThickness = new Thickness(primary ? 0 : 1)
+                };
+                b.Click += async (_, _) => await act();
+                return b;
+            }
+            var canOpen = d.State is not ("provisioning" or "resetting" or "error");
+            actions.Children.Add(Act("Connect", () => connectors.TryGetValue(d.Id, out var go) ? go() : Task.CompletedTask, true, canOpen));
+            if (d.Policy?.AllowPower != false)
+            {
+                actions.Children.Add(Act("Start", () => Power(d, "start", null), enabled: !Running(d)));
+                actions.Children.Add(Act("MoaviReboot", () => Power(d, "reboot", "MoaviConfirmReboot"), enabled: Running(d)));
+                actions.Children.Add(Act("Shutdown", () => Power(d, "shutdown", "MoaviConfirmShutdown"), enabled: Running(d)));
+            }
+            detail.Children.Add(actions);
         }
 
         (string Text, Color Color) State(DeskInfo d) => d.State switch
@@ -303,7 +546,7 @@ internal static class MainWindow
         void SetFilter(string f)
         {
             filter = f;
-            foreach (var (key, nav) in new[] { ("all", navAll), ("star", navStar), ("running", navRunning) })
+            foreach (var (key, nav) in new[] { ("all", navAll), ("star", navStar), ("running", navRunning), ("recent", navRecent) })
             {
                 nav.Button.Background = key == f ? B(Raised) : Brushes.Transparent;
             }
@@ -316,20 +559,28 @@ internal static class MainWindow
             IEnumerable<DeskInfo> list = all;
             if (filter == "star") { list = list.Where(d => d.Id == config.FavoriteDesktop); }
             if (filter == "running") { list = list.Where(Running); }
+            if (filter == "recent") { list = list.Where(d => When(d.LastConnected) is not null); }
             if (q.Length > 0)
             {
                 list = list.Where(d => d.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
                                        || d.Pool.Contains(q, StringComparison.OrdinalIgnoreCase));
             }
-            list = sortBox.SelectedIndex == 1
-                ? list.OrderBy(d => Running(d) ? 0 : 1).ThenBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase)
-                : list.OrderBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase);
+            list = sortBox.SelectedIndex switch
+            {
+                1 => list.OrderBy(d => Running(d) ? 0 : 1).ThenBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase),
+                2 => list.OrderByDescending(d => When(d.LastConnected) ?? DateTimeOffset.MinValue),
+                _ => list.OrderBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase)
+            };
             var shown = list.ToList();
 
-            heading.Text = filter switch { "star" => L("NavStarred"), "running" => L("NavRunning"), _ => L("NavAll") };
+            heading.Text = filter switch { "star" => L("NavStarred"), "running" => L("NavRunning"), "recent" => L("NavRecent"), _ => L("NavAll") };
             navAll.Count.Text = all.Count.ToString();
             navStar.Count.Text = all.Count(d => d.Id == config.FavoriteDesktop).ToString();
             navRunning.Count.Text = all.Count(Running).ToString();
+            navRecent.Count.Text = all.Count(d => When(d.LastConnected) is not null).ToString();
+
+            // the first desktop is selected until the user picks one
+            if (selectedId is null || all.All(d => d.Id != selectedId)) { selectedId = shown.FirstOrDefault()?.Id; }
 
             grid.Children.Clear();
             connectors.Clear();
@@ -337,7 +588,49 @@ internal static class MainWindow
             empty.IsVisible = shown.Count == 0;
             emptyTitle.Text = all.Count == 0 ? L("MoaviNoDesktops") : L("EmptyFiltered");
             emptyText.Text = all.Count == 0 ? L("EmptyNoDesktopsHint") : L("EmptyFilteredHint");
+
+            leaseHeading.IsVisible = leases.Count > 0;
+            leaseList.Children.Clear();
+            foreach (var l in leases)
+            {
+                var ends = When(l.EndsAt);
+                leaseList.Children.Add(new StackPanel
+                {
+                    Margin = new Thickness(10, 3, 6, 3),
+                    Spacing = 1,
+                    Children =
+                    {
+                        UiHelper.WithText(l.Kind == "usb" ? AppIcons.Ftp : l.Kind == "desktop" ? AppIcons.Monitor : AppIcons.ChartBar, l.Name, B(Ink)),
+                        new TextBlock
+                        {
+                            Text = string.Join(" · ", new[] { l.Desktop, ends is { } e ? string.Format(L("LeaseEnds"), e.ToLocalTime().ToString("MM-dd HH:mm")) : null }.Where(x => !string.IsNullOrEmpty(x))),
+                            FontSize = 11, Foreground = B(Subtle), Margin = new Thickness(22, 0, 0, 0)
+                        }
+                    }
+                });
+            }
+            RenderDetail();
             Status();
+        }
+
+        // the screens of the running desktops, all at once (the engine caches them ~20 s)
+        async Task LoadShots()
+        {
+            var want = all.Where(d => Running(d) && d.Policy?.ScreenThumbnail != false).ToList();
+            var got = await Task.WhenAll(want.Select(async d => (d.Id, Shot: await api.ScreenshotAsync(d.Id))));
+            var old = shots.Values.Select(v => v.Image).Where(i => i is not null).ToList();
+            shots.Clear();
+            foreach (var (id, (png, off)) in got)
+            {
+                Bitmap? img = null;
+                if (png is { Length: > 0 })
+                {
+                    try { using var ms = new MemoryStream(png); img = new Bitmap(ms); } catch { img = null; }
+                }
+                shots[id] = (img, off);
+            }
+            Render();
+            foreach (var i in old) { i!.Dispose(); }
         }
 
         async Task Load()
@@ -346,7 +639,17 @@ internal static class MainWindow
             {
                 all = await api.DesktopsAsync();
                 serverOk = true;
+                refreshedAt = DateTime.Now;
+                leases = await api.LeasesAsync();
                 Render();
+                // a notice from the administrators, unless something else is being said
+                banners = await api.BannersAsync();
+                if (!infoBar.IsVisible && banners.FirstOrDefault(b => !dismissed.Contains(b.Id)) is { } bn)
+                {
+                    Notice(bn.Text, bn.Severity is "critical" or "error" ? Danger : bn.Severity == "warning" ? Warn : Accent);
+                    shownBanner = bn.Id;
+                }
+                _ = LoadShots();
                 // 자동 접속: the starred desktop, else the only one - once per sign-in
                 if (!autoConnected && config.AutoConnect && !config.IsSharedPc)
                 {
@@ -476,10 +779,13 @@ internal static class MainWindow
                 }
                 Add(L("Connect"), Connect, canOpen);
                 Add(L(starred ? "FavoriteRemove" : "FavoriteAdd"), ToggleStar);
-                m.Items.Add(new Separator());
-                Add(L("Start"), () => Power(d, "start", null));
-                Add(L("MoaviReboot"), () => Power(d, "reboot", "MoaviConfirmReboot"));
-                Add(L("Shutdown"), () => Power(d, "shutdown", "MoaviConfirmShutdown"));
+                if (d.Policy?.AllowPower != false)
+                {
+                    m.Items.Add(new Separator());
+                    Add(L("Start"), () => Power(d, "start", null), !Running(d));
+                    Add(L("MoaviReboot"), () => Power(d, "reboot", "MoaviConfirmReboot"), Running(d));
+                    Add(L("Shutdown"), () => Power(d, "shutdown", "MoaviConfirmShutdown"), Running(d));
+                }
                 return m;
             }
             var btnMore = UiHelper.IconButton(AppIcons.DotsVertical, "More", size: 15, foregroundColor: Soft);
@@ -521,13 +827,64 @@ internal static class MainWindow
             mark.HorizontalAlignment = HorizontalAlignment.Center;
             mark.VerticalAlignment = VerticalAlignment.Center;
             mark.Opacity = Running(d) ? 0.95 : 0.4;
+
+            // the desktop's screen (as on the portal card), else 화면 꺼짐, else the OS mark;
+            // who is signed in rides on it as a small dark chip
+            shots.TryGetValue(d.Id, out var shot);
+            Control centre = mark;
+            if (shot.Image is not null)
+            {
+                centre = new Image { Source = shot.Image, Stretch = Stretch.UniformToFill, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            }
+            else if (shot.Off)
+            {
+                centre = new StackPanel
+                {
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Spacing = 4,
+                    Children =
+                    {
+                        UiHelper.Icon(AppIcons.Monitor, 26, B(Color.Parse("#94A3B8"))),
+                        new TextBlock { Text = L("ScreenOff"), FontSize = 11.5, Foreground = B(Color.Parse("#CBD5E1")), HorizontalAlignment = HorizontalAlignment.Center }
+                    }
+                };
+            }
+            var who = SignedInText(d);
+            var whoChip = new Border
+            {
+                IsVisible = who is not null,
+                Background = B(Color.Parse("#B80B1220")),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(8, 3),
+                Margin = new Thickness(8),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Child = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal, Spacing = 5,
+                    Children =
+                    {
+                        UiHelper.Icon(AppIcons.Account, 11, B(Colors.White)),
+                        new TextBlock { Text = who ?? "", FontSize = 11, Foreground = B(Colors.White), FontWeight = FontWeight.SemiBold }
+                    }
+                }
+            };
             var preview = new Border
             {
-                Height = 118,
-                Background = B(windows ? Color.Parse("#E7EFFB") : Color.Parse("#ECEFF4")),
+                Height = 140,
+                Background = B(shot.Image is not null || shot.Off ? Color.Parse("#0F172A") : windows ? Color.Parse("#E7EFFB") : Color.Parse("#ECEFF4")),
                 CornerRadius = new CornerRadius(5, 5, 0, 0),
-                Child = new Grid { Margin = new Thickness(8), Children = { mark, chip, star } }
+                ClipToBounds = true,
+                Child = new Grid
+                {
+                    Children =
+                    {
+                        centre,
+                        new Grid { Margin = new Thickness(8), Children = { chip, star } },
+                        whoChip
+                    }
+                }
             };
+            if (shot.Image is not null) { ToolTip.SetTip(preview, L("ScreenTip")); }
 
             var spec = string.Join("  ·  ", new[]
             {
@@ -560,6 +917,11 @@ internal static class MainWindow
                                 new TextBlock { Text = d.Name, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = B(Ink), TextTrimming = TextTrimming.CharacterEllipsis },
                                 new TextBlock { Text = string.Join("  ·  ", new[] { d.Pool, d.Os }.Where(x => !string.IsNullOrEmpty(x))), FontSize = 12, Foreground = B(Subtle), TextTrimming = TextTrimming.CharacterEllipsis },
                                 new TextBlock { Text = spec, FontSize = 12, Foreground = B(Subtle), IsVisible = spec.Length > 0 },
+                                new TextBlock
+                                {
+                                    Text = When(d.LastConnected) is { } lc ? string.Format(L("LastConnected"), Ago(lc)) : "",
+                                    FontSize = 11.5, Foreground = B(Subtle), IsVisible = When(d.LastConnected) is not null
+                                },
                                 new Grid
                                 {
                                     ColumnDefinitions = new ColumnDefinitions("*,Auto"),
@@ -571,8 +933,12 @@ internal static class MainWindow
                     }
                 }
             };
-            tile.PointerEntered += (_, _) => tile.BorderBrush = B(Color.Parse("#9FB2CB"));
-            tile.PointerExited += (_, _) => tile.BorderBrush = B(Hair);
+            // a click selects it (정보 on the right), a double-click connects
+            var selected = d.Id == selectedId;
+            if (selected) { tile.BorderBrush = B(Action); tile.BorderThickness = new Thickness(2); tile.Margin = new Thickness(-1, -1, 11, 11); }
+            tile.PointerEntered += (_, _) => { if (!selected) { tile.BorderBrush = B(Color.Parse("#9FB2CB")); } };
+            tile.PointerExited += (_, _) => { if (!selected) { tile.BorderBrush = B(Hair); } };
+            tile.Tapped += (_, _) => { if (selectedId != d.Id) { selectedId = d.Id; Render(); } };
             tile.DoubleTapped += async (_, _) => await Connect();
             return tile;
         }
@@ -594,7 +960,6 @@ internal static class MainWindow
         }
 
         // the user menu
-        var supportUrl = clientConfig?.SupportUrl is { Length: > 0 } s ? s : DefaultSupportUrl;
         void MenuAdd(string header, Func<Task> act)
         {
             var item = new MenuItem { Header = header };
@@ -624,6 +989,7 @@ internal static class MainWindow
         navAll.Button.Click += (_, _) => SetFilter("all");
         navStar.Button.Click += (_, _) => SetFilter("star");
         navRunning.Button.Click += (_, _) => SetFilter("running");
+        navRecent.Button.Click += (_, _) => SetFilter("recent");
         search.TextChanged += (_, _) => Render();
         sortBox.SelectionChanged += (_, _) => Render();
         SetFilter("all");
