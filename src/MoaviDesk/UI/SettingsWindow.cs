@@ -27,7 +27,7 @@ internal static class SettingsWindow
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Background = B(Bg),
             Icon = Brand.AppIcon(),
-            RequestedThemeVariant = ThemeVariant.Dark
+            RequestedThemeVariant = ThemeVariant.Light
         };
 
         var (host, port, https) = DeskApi.ParseServer(config.ServerUrl);

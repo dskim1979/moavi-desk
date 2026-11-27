@@ -7,23 +7,36 @@ using MoaviDesk.UI.Helpers;
 
 namespace MoaviDesk.UI;
 
-/// <summary>MOAVI Desk look: the console's dark navy palette and the M mark.</summary>
+/// <summary>MOAVI Desk look: light surfaces over a picture, a deep-teal accent, the M mark.</summary>
 internal static class Brand
 {
     public const string Product = "MOAVI Desk";
     public const string DefaultSupportUrl = "https://support.makussystems.co.kr/";
 
-    public static readonly Color Bg = Color.Parse("#111B30");
-    public static readonly Color Surface = Color.Parse("#1A2742");
-    public static readonly Color Surface2 = Color.Parse("#101A2E");
-    public static readonly Color Edge = Color.Parse("#2E3D5C");
-    public static readonly Color Text = Color.Parse("#F1F5F9");
-    public static readonly Color Muted = Color.Parse("#B8C4D6");
-    public static readonly Color Accent = Color.Parse("#53B1B1");
-    public static readonly Color OnAccent = Color.Parse("#0F182C");
-    public static readonly Color Ok = Color.Parse("#4ADE80");
-    public static readonly Color Warn = Color.Parse("#F0A35E");
-    public static readonly Color Danger = Color.Parse("#F87171");
+    public static readonly Color Bg = Color.Parse("#F3F6FA");
+    public static readonly Color Surface = Color.Parse("#FFFFFF");
+    public static readonly Color Surface2 = Color.Parse("#F5F8FB");
+    public static readonly Color Edge = Color.Parse("#DCE3EC");
+    public static readonly Color Text = Color.Parse("#0F172A");
+    public static readonly Color Muted = Color.Parse("#5B6B82");
+    public static readonly Color Accent = Color.Parse("#12807C");
+    public static readonly Color OnAccent = Color.Parse("#FFFFFF");
+    public static readonly Color Ok = Color.Parse("#16A34A");
+    public static readonly Color Warn = Color.Parse("#D97706");
+    public static readonly Color Danger = Color.Parse("#DC2626");
+
+    /// <summary>The picture behind the windows: the user's (설정 › 일반 › 배경 이미지), else the built-in one.</summary>
+    public static IBrush Backdrop(Config.AppConfig config)
+    {
+        try
+        {
+            var bmp = File.Exists(config.WorkspaceBackground)
+                ? new Avalonia.Media.Imaging.Bitmap(config.WorkspaceBackground)
+                : new Avalonia.Media.Imaging.Bitmap(Avalonia.Platform.AssetLoader.Open(new Uri("avares://moavi-desk/background.jpg")));
+            return new ImageBrush(bmp) { Stretch = Stretch.UniformToFill };
+        }
+        catch { return B(Bg); }
+    }
 
     public static IBrush B(Color c) => new SolidColorBrush(c);
 

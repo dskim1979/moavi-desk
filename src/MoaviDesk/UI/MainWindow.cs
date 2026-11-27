@@ -26,20 +26,9 @@ internal static class MainWindow
     private static readonly Color Ink = Color.Parse("#0F172A");
     private static readonly Color Soft = Color.Parse("#475569");
     private static readonly Color Subtle = Color.Parse("#64748B");
-    private static readonly Color Action = Color.Parse("#12807C");
+    private static readonly Color Action = Accent;
 
-    /// <summary>The user's picture, else the built-in one.</summary>
-    private static IBrush Backdrop(AppConfig config)
-    {
-        try
-        {
-            var bmp = File.Exists(config.WorkspaceBackground)
-                ? new Avalonia.Media.Imaging.Bitmap(config.WorkspaceBackground)
-                : new Avalonia.Media.Imaging.Bitmap(Avalonia.Platform.AssetLoader.Open(new Uri("avares://moavi-desk/background.jpg")));
-            return new ImageBrush(bmp) { Stretch = Stretch.UniformToFill };
-        }
-        catch { return B(Color.Parse("#EEF3F8")); }
-    }
+
 
     public static Window Create(AppConfig config, DeskApi api, ClientConfig? clientConfig, string? notice)
     {

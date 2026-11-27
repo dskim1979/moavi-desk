@@ -42,7 +42,7 @@ internal sealed class Program
                                 .SetupWithLifetime(lifetime);
 
         builder.Instance!.Styles.Add(new FluentTheme());
-        builder.Instance.RequestedThemeVariant = config.ThemeVariant;
+        builder.Instance.RequestedThemeVariant = ThemeVariant.Light;   // the light MOAVI Desk look everywhere (Brand)
 
 #if DEBUG
         if (!Snapshot.TryStart(config, lifetime))

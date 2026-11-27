@@ -36,9 +36,9 @@ internal static class LoginWindow
             SizeToContent = SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Background = B(Bg),
+            Background = Backdrop(config),
             Icon = Brand.AppIcon(),
-            RequestedThemeVariant = ThemeVariant.Dark
+            RequestedThemeVariant = ThemeVariant.Light
         };
 
         // whether the configured server answers (it is never shown here)
@@ -157,6 +157,7 @@ internal static class LoginWindow
         var card = new Border
         {
             Background = B(Surface),
+            BoxShadow = BoxShadows.Parse("0 8 24 0 #1F0F172A"),
             BorderBrush = B(Edge),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(14),
