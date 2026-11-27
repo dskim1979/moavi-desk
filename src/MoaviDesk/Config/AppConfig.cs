@@ -124,7 +124,8 @@ internal class AppConfig
     /// <summary>Network: <c>auto</c>, <c>lan</c>, <c>broadband</c> or <c>wan</c> (auto measures the link).</summary>
     public string RdpNetwork { get; set; } = "auto";
 
-    /// <summary>Picture behind the desktops window; empty = the built-in one.</summary>
+    /// <summary>Picture behind the sign-in and desktops windows: <c>builtin:&lt;key&gt;</c> (Brand.Backgrounds),
+    /// a file path of the user's own, or empty = the default built-in one.</summary>
     public string WorkspaceBackground { get; set; } = string.Empty;
 
     /// <summary>A LAB PC or a kiosk: shared, so no kept password and no auto sign-in.</summary>

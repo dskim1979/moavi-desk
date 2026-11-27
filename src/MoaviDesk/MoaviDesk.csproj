@@ -29,7 +29,8 @@
 
   <ItemGroup>
     <AvaloniaResource Include="moavi.ico" Link="icon.ico" />
-    <AvaloniaResource Include="background.jpg" />
+    <!-- the built-in backgrounds (Unsplash licence photos + MOAVI's own; 3rd-party-licenses.md) and their thumbnails -->
+    <AvaloniaResource Include="Backgrounds\**\*.jpg" />
     <!-- Paperlogy (SIL OFL, Fonts/OFL.txt), the console's typeface: the app's default font -->
     <AvaloniaResource Include="Fonts\*.ttf" />
     <!-- the RDP window (WinForms) loads two weights from the exe itself: the MSI ships only moavi-desk.exe -->

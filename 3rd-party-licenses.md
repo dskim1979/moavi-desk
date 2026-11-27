@@ -27,3 +27,17 @@ MOAVI Desk 클라이언트는 [LICENSE.md](LICENSE.md)(MIT)에 따라 배포됩�
 The client's typeface, bundled in moavi-desk.exe (converted from WOFF2 to TrueType, glyphs unchanged).
 Copyright (c) 2024 PT&; Paperlogy is a trademark of Lee Juim. Licensed under the SIL Open Font License 1.1 - full text in
 `src/MoaviDesk/Fonts/OFL.txt`.
+
+## Background photos (Unsplash)
+
+The built-in backgrounds 1-6 (`src/MoaviDesk/Backgrounds`, also in the MOAVI Desk portal) are photos published under
+the Unsplash License (https://unsplash.com/license): free for commercial use, no attribution required. Credited anyway:
+
+1. Ansgar Scheffold - https://unsplash.com/photos/z_f2JrBRbOg
+2. Roberto Nickson - https://unsplash.com/photos/vZ1JAXUO3-0 (Lake Louise, Canada)
+3. Tobias Reich - https://unsplash.com/photos/kOFvKxzph30 (Italy)
+4. Sudip Saha - https://unsplash.com/photos/9aomUwLRN5E
+5. Annelie Turner - https://unsplash.com/photos/LdrE86KvLO0
+6. Donna Elliot - https://unsplash.com/photos/bRGsLkB2h2I
+
+`moavi.jpg` is MOAVI Desk's own drawing.

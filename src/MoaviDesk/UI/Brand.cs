@@ -25,14 +25,40 @@ internal static class Brand
     public static readonly Color Warn = Color.Parse("#D97706");
     public static readonly Color Danger = Color.Parse("#DC2626");
 
-    /// <summary>The picture behind the windows: the user's (설정 › 일반 › 배경 이미지), else the built-in one.</summary>
+    /// <summary>The built-in backgrounds, in the order Settings shows them: key and short Korean / English name.
+    /// The photos are Unsplash licence photos (credits in 3rd-party-licenses.md); "moavi" is MOAVI's own drawing.</summary>
+    public static readonly (string Key, string Ko, string En)[] Backgrounds =
+    [
+        ("1", "노을 산 호수", "Alpine lake at dusk"),
+        ("2", "푸른 호수", "Blue lake"),
+        ("3", "숲 호수", "Forest lake"),
+        ("4", "고요한 호수", "Still lake"),
+        ("5", "구름 하늘", "Cloudy sky"),
+        ("6", "해 뜨는 호수", "Lake at sunrise"),
+        ("moavi", "MOAVI", "MOAVI"),
+    ];
+
+    public const string DefaultBackground = "1";
+
+    /// <summary>The key of a built-in choice, or null when the setting names a file of the user's own.</summary>
+    public static string? BuiltinKey(string setting)
+    {
+        if (string.IsNullOrWhiteSpace(setting)) { return DefaultBackground; }
+        return setting.StartsWith("builtin:", StringComparison.Ordinal) ? setting["builtin:".Length..] : null;
+    }
+
+    public static Avalonia.Media.Imaging.Bitmap BuiltinBitmap(string key, bool thumb = false)
+        => new(Avalonia.Platform.AssetLoader.Open(new Uri($"avares://moavi-desk/Backgrounds/{(thumb ? "thumbs/" : "")}{key}.jpg")));
+
+    /// <summary>The picture behind the windows (설정 › 일반 › 배경): a built-in one or the user's own file.</summary>
     public static IBrush Backdrop(Config.AppConfig config)
     {
         try
         {
-            var bmp = File.Exists(config.WorkspaceBackground)
+            var key = BuiltinKey(config.WorkspaceBackground);
+            var bmp = key is null && File.Exists(config.WorkspaceBackground)
                 ? new Avalonia.Media.Imaging.Bitmap(config.WorkspaceBackground)
-                : new Avalonia.Media.Imaging.Bitmap(Avalonia.Platform.AssetLoader.Open(new Uri("avares://moavi-desk/background.jpg")));
+                : BuiltinBitmap(Backgrounds.Any(b => b.Key == key) ? key! : DefaultBackground);
             return new ImageBrush(bmp) { Stretch = Stretch.UniformToFill };
         }
         catch { return B(Bg); }

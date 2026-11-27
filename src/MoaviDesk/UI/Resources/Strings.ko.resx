@@ -172,7 +172,7 @@
   <data name="ConnectWith" xml:space="preserve"><value>{0}(으)로 연결</value></data>
   <data name="Background" xml:space="preserve"><value>배경 이미지 (로그인 · 데스크톱 목록 창)</value></data>
   <data name="BackgroundDefault" xml:space="preserve"><value>기본 배경</value></data>
-  <data name="BackgroundPick" xml:space="preserve"><value>배경 이미지 고르기</value></data>
+  <data name="BackgroundPick" xml:space="preserve"><value>내 사진…</value></data>
   <data name="BackgroundImages" xml:space="preserve"><value>이미지</value></data>
   <data name="BackgroundReset" xml:space="preserve"><value>기본 배경으로</value></data>
   <data name="WelcomeTitle" xml:space="preserve"><value>MOAVI Desk에 오신 것을 환영합니다</value></data>

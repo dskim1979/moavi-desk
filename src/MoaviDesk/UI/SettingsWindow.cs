@@ -99,9 +99,44 @@ internal static class SettingsWindow
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         var chkFull = new CheckBox { Content = L("MoaviFullScreen"), IsChecked = config.ViewerFullScreen };
-        // the picture behind the desktops window; empty = the built-in one
-        var txtBackground = UiHelper.TextBox(config.WorkspaceBackground, L("BackgroundDefault"));
-        var btnBackground = UiHelper.IconButton(AppIcons.Folder, "BackgroundPick", foregroundColor: Muted);
+        // the picture behind the sign-in and desktops windows: one of the built-in ones or the user's own file
+        var background = string.IsNullOrWhiteSpace(config.WorkspaceBackground) ? $"builtin:{DefaultBackground}" : config.WorkspaceBackground;
+        var bgTiles = new WrapPanel { Orientation = Orientation.Horizontal };
+        var bgOwn = new TextBlock { Foreground = B(Muted), FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis };
+        void ShowBackground()
+        {
+            foreach (var b in bgTiles.Children.OfType<Button>())
+            {
+                var on = (string?)b.Tag == background;
+                b.BorderBrush = B(on ? Accent : Edge);
+                b.BorderThickness = new Thickness(on ? 3 : 1);
+            }
+            var own = BuiltinKey(background) is null;
+            bgOwn.Text = own ? background : string.Empty;
+            bgOwn.IsVisible = own;
+        }
+        var ko = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ko";
+        foreach (var (key, nameKo, nameEn) in Backgrounds)
+        {
+            var tile = new Button
+            {
+                Tag = $"builtin:{key}",
+                Padding = new Thickness(0),
+                Margin = new Thickness(0, 0, 8, 8),
+                CornerRadius = new CornerRadius(8),
+                Background = Brushes.Transparent,
+                Content = new Border
+                {
+                    CornerRadius = new CornerRadius(6),
+                    ClipToBounds = true,
+                    Child = new Image { Source = BuiltinBitmap(key, thumb: true), Width = 128, Height = 72, Stretch = Stretch.UniformToFill }
+                }
+            };
+            ToolTip.SetTip(tile, ko ? nameKo : nameEn);
+            tile.Click += (_, _) => { background = (string)tile.Tag!; ShowBackground(); };
+            bgTiles.Children.Add(tile);
+        }
+        var btnBackground = GhostButton(L("BackgroundPick"), AppIcons.Folder);
         btnBackground.Click += async (_, _) =>
         {
             var files = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -110,10 +145,9 @@ internal static class SettingsWindow
                 AllowMultiple = false,
                 FileTypeFilter = [new FilePickerFileType(L("BackgroundImages")) { Patterns = ["*.jpg", "*.jpeg", "*.png", "*.bmp"] }]
             });
-            if (files.Count > 0 && files[0].TryGetLocalPath() is { } path) { txtBackground.Text = path; }
+            if (files.Count > 0 && files[0].TryGetLocalPath() is { } path) { background = path; ShowBackground(); }
         };
-        var btnBackgroundReset = GhostButton(L("BackgroundReset"));
-        btnBackgroundReset.Click += (_, _) => txtBackground.Text = string.Empty;
+        ShowBackground();
         var chkAutoConnect = new CheckBox { Content = L("AutoConnect"), IsChecked = config.AutoConnect, IsEnabled = !config.IsSharedPc };
 
         // RDP window
@@ -185,7 +219,7 @@ internal static class SettingsWindow
             config.Protocol = Protocols[Math.Max(0, cmbProtocol.SelectedIndex)];
             config.ViewerFullScreen = chkFull.IsChecked == true;
             config.AutoConnect = chkAutoConnect.IsChecked == true;
-            config.WorkspaceBackground = txtBackground.Text?.Trim() ?? "";
+            config.WorkspaceBackground = background;
             config.RdpColorDepth = depths[Math.Max(0, cmbDepth.SelectedIndex)];
             config.RdpAudio = audios[Math.Max(0, cmbAudio.SelectedIndex)];
             config.RdpMicrophone = chkMic.IsChecked == true;
@@ -262,8 +296,8 @@ internal static class SettingsWindow
                 {
                     Pair(L("DefaultProtocol"), cmbProtocol),
                     chkFull, chkAutoConnect,
-                    Pair(L("Background"), UiHelper.RowWithButton(txtBackground, btnBackground)),
-                    btnBackgroundReset,
+                    Pair(L("Background"), bgTiles),
+                    new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { btnBackground, bgOwn } },
                     Pair(L("ViewerPath"), UiHelper.RowWithButton(txtViewer, btnBrowse))
                 }
             }),
