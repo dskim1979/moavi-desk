@@ -25,18 +25,21 @@ internal static class LoginWindow
         ("en", "English"),
     ];
 
+    private static bool _autoTried;
+
     public static Window Create(AppConfig config)
     {
         var window = new Window
         {
             Title = $"{Product} · {L("Login")}",
-            Width = 440,
-            SizeToContent = SizeToContent.Height,
-            CanResize = false,
+            Width = 1120,
+            Height = 700,
+            MinWidth = 560,
+            MinHeight = 620,
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Background = B(Bg),
+            Background = Backdrop(config),
             Icon = Brand.AppIcon(),
-            RequestedThemeVariant = ThemeVariant.Dark
+            RequestedThemeVariant = ThemeVariant.Light
         };
 
         // whether the configured server answers (it is never shown here)
@@ -79,6 +82,16 @@ internal static class LoginWindow
         var txtUser = UiHelper.TextBox(config.LastUser, L("Username"), AppIcons.Account);
         var txtPassword = UiHelper.TextBox(watermark: L("Password"), iconData: AppIcons.Lock);
         txtPassword.PasswordChar = '●';
+        var btnReveal = UiHelper.IconButton(AppIcons.Eye, "ShowPassword", foregroundColor: Muted);
+        btnReveal.Click += (_, _) => txtPassword.PasswordChar = txtPassword.PasswordChar == '\0' ? '●' : '\0';
+        txtPassword.InnerRightContent = btnReveal;
+        // a kept password (DPAPI, this Windows user) fills the field; a LAB PC or a kiosk never keeps one
+        var kept = PasswordVault.Read(config);
+        if (kept is not null) { txtPassword.Text = kept; }
+        var chkRemember = new CheckBox { Content = L("RememberPassword"), IsChecked = config.RememberPassword, IsVisible = !config.IsSharedPc };
+        var chkAuto = new CheckBox { Content = L("AutoSignIn"), IsChecked = config.AutoSignIn, IsVisible = !config.IsSharedPc };
+        chkAuto.IsCheckedChanged += (_, _) => { if (chkAuto.IsChecked == true) { chkRemember.IsChecked = true; } };
+        chkRemember.IsCheckedChanged += (_, _) => { if (chkRemember.IsChecked != true) { chkAuto.IsChecked = false; } };
         var txtOtp = UiHelper.TextBox(watermark: L("OtpWatermark"), iconData: AppIcons.Key);
         var otpLabel = Label(L("OtpLabel"));
         otpLabel.IsVisible = txtOtp.IsVisible = false;
@@ -110,13 +123,28 @@ internal static class LoginWindow
 
         var btnSettings = UiHelper.IconButton(AppIcons.Settings, "Settings", foregroundColor: Muted);
 
-        var header = new Grid
+        var corner = new Border
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
-            Children = { Lockup(34, 21), cmbLanguageWithIcon, btnSettings }
+            Background = B(Color.Parse("#B3FFFFFF")),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(6, 2),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 16, 16, 0),
+            Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Children = { cmbLanguageWithIcon, btnSettings } }
         };
-        Grid.SetColumn(cmbLanguageWithIcon, 1);
-        Grid.SetColumn(btnSettings, 2);
+        var markBox = Mark(56);
+        markBox.HorizontalAlignment = HorizontalAlignment.Center;
+        var header = new StackPanel
+        {
+            Spacing = 10,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Children =
+            {
+                markBox,
+                new TextBlock { Text = L("WelcomeTitle"), FontSize = 20, FontWeight = FontWeight.Bold, Foreground = B(Text), HorizontalAlignment = HorizontalAlignment.Center }
+            }
+        };
 
         var support = new Button
         {
@@ -148,21 +176,26 @@ internal static class LoginWindow
         var card = new Border
         {
             Background = B(Surface),
+            BoxShadow = BoxShadows.Parse("0 18 48 0 #330F172A"),
             BorderBrush = B(Edge),
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(14),
-            Padding = new Thickness(24),
+            CornerRadius = new CornerRadius(16),
+            Padding = new Thickness(32, 28),
+            Width = 400,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
             Child = new StackPanel
             {
                 Spacing = 10,
                 Children =
                 {
                     header,
-                    new TextBlock { Text = L("MoaviSignInTitle"), Foreground = B(Muted), Margin = new Thickness(0, 4, 0, 6) },
+                    new TextBlock { Text = L("MoaviSignInTitle"), Foreground = B(Muted), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 8) },
                     statusRow,
                     enrollText,
                     Label(L("Username")), txtUser,
                     Label(L("Password")), txtPassword,
+                    new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Children = { chkRemember, chkAuto } },
                     otpLabel, txtOtp,
                     lblError,
                     progress,
@@ -171,11 +204,25 @@ internal static class LoginWindow
             }
         };
 
-        var root = new StackPanel
+        var foot = new Border
         {
-            Margin = new Thickness(20),
-            Spacing = 14,
-            Children = { card, footer }
+            Background = B(Color.Parse("#B3FFFFFF")),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(14, 6),
+            Width = 400,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 0, 16),
+            Child = footer
+        };
+        var root = new Grid
+        {
+            Children =
+            {
+                new ScrollViewer { Content = new Border { Padding = new Thickness(20, 56, 20, 72), Child = card }, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto },
+                corner,
+                foot
+            }
         };
         window.Content = root;
 
@@ -183,14 +230,7 @@ internal static class LoginWindow
         var unlocked = false;
         if (config.Kiosk)
         {
-            if (config.KioskForceFullScreen)
-            {
-                root.Width = 460;
-                root.HorizontalAlignment = HorizontalAlignment.Center;
-                root.VerticalAlignment = VerticalAlignment.Center;
-                window.SizeToContent = SizeToContent.Manual;
-                window.WindowState = WindowState.FullScreen;
-            }
+            if (config.KioskForceFullScreen) { window.WindowState = WindowState.FullScreen; }
             if (!string.IsNullOrEmpty(config.KioskLoginBackground) && File.Exists(config.KioskLoginBackground))
             {
                 try { window.Background = new ImageBrush(new Avalonia.Media.Imaging.Bitmap(config.KioskLoginBackground)) { Stretch = Stretch.UniformToFill }; }
@@ -299,7 +339,11 @@ internal static class LoginWindow
                         txtOtp.Focus();
                         api.Dispose();
                         return;
-                    case LoginResult.Invalid: Fail(L("MoaviErrInvalid")); api.Dispose(); return;
+                    case LoginResult.Invalid:
+                        Fail(L("MoaviErrInvalid"));
+                        if (config.SavedPassword.Length > 0) { PasswordVault.Forget(config); AppConfigManager.Save(config); }
+                        api.Dispose();
+                        return;
                     case LoginResult.Locked: Fail(L("MoaviErrLocked")); api.Dispose(); return;
                     case LoginResult.Network:
                         Fail(L("MoaviServerOffline"));
@@ -311,6 +355,9 @@ internal static class LoginWindow
                 }
 
                 config.LastUser = user;
+                config.RememberPassword = chkRemember.IsChecked == true && !config.IsSharedPc;
+                config.AutoSignIn = chkAuto.IsChecked == true && config.RememberPassword;
+                PasswordVault.Keep(config, txtPassword.Text!);
                 AppConfigManager.Save(config);
 
                 var clientConfig = await api.ClientConfigAsync();
@@ -360,6 +407,13 @@ internal static class LoginWindow
             else { txtPassword.Focus(); }
             probeTimer.Start();
             await Probe();
+            // sign in by itself once per start - not again after signing out
+            if (!_autoTried && config.AutoSignIn && kept is not null && txtUser.Text?.Length > 0)
+            {
+                _autoTried = true;
+                await SignIn();
+            }
+            _autoTried = true;
         };
 
         return window;

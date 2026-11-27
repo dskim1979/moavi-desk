@@ -16,8 +16,9 @@ namespace MoaviDesk.Services;
 /// SPICE: the engine hands a .vv file (through the node's spiceproxy) → write it, launch it.
 /// VNC: the engine hands a console websocket path → bridge it to a local TCP port and point
 /// remote-viewer at that port with a vnc .vv file. The bridge lives until the viewer exits.
-/// RDP: the engine hands an .rdp file → Windows' own Remote Desktop client (mstsc) opens it; mstsc
-/// measures the link and picks UDP and H.264/AVC when the desktop offers them.
+/// RDP: the engine hands an .rdp file → MOAVI Desk's own window with Windows' Remote Desktop control
+/// (RdpWindow; mstsc's engine, so UDP and H.264/AVC when the desktop offers them). A file the control
+/// cannot open (an RD Gateway access token) still goes to mstsc.
 /// </summary>
 internal static class Viewer
 {
@@ -34,7 +35,13 @@ internal static class Viewer
     public static async Task<(string Error, Process? Process)> OpenAsync(DeskApi api, ConnectInfo c,
                                                                        string viewerPath, string title, bool fullScreen)
     {
-        if (c.Type == "rdp") { return OpenRdp(c.Rdp ?? "", fullScreen); }
+        if (c.Type == "rdp")
+        {
+            if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(c.Rdp)) { return (L("RdpNeedsWindows"), null); }
+            if (!fullScreen) { c.Rdp = c.Rdp.Replace("screen mode id:i:2", "screen mode id:i:1", StringComparison.Ordinal); }
+            var (embedded, error, process) = RdpLauncher.Open(c.Rdp, title, fullScreen, SignInPassword(api, c));
+            return embedded ? (error, process) : OpenRdp(c.Rdp, fullScreen);
+        }
 
         var viewer = string.IsNullOrWhiteSpace(viewerPath) ? null : RemoteViewer.Resolve(viewerPath);
         if (viewer is null) { return (L("ViewerPathNotSet"), null); }
@@ -87,10 +94,24 @@ internal static class Viewer
         return candidates.FirstOrDefault(File.Exists) ?? configured;
     }
 
+    /// <summary>
+    /// The password the user signed in to MOAVI Desk with, for the desktop's Windows logon - only when
+    /// the .rdp names that same account (MOAVI Desk and the desktops share the directory) and goes
+    /// straight to the desktop. Through Warpgate the user name is a one-time ticket for the bastion,
+    /// so nothing is passed there.
+    /// </summary>
+    private static string? SignInPassword(DeskApi api, ConnectInfo c)
+    {
+        if (c.Via == "warpgate" || string.IsNullOrEmpty(api.SignInPassword)) { return null; }
+        var user = RdpWindow.Parse(c.Rdp ?? "").GetValueOrDefault("username", "");
+        var account = user.Contains('\\') ? user[(user.LastIndexOf('\\') + 1)..] : user.Split('@')[0];
+        return account.Length > 0 && string.Equals(account, api.Username, StringComparison.OrdinalIgnoreCase)
+            ? api.SignInPassword
+            : null;
+    }
+
     private static (string Error, Process? Process) OpenRdp(string rdp, bool fullScreen)
     {
-        if (!OperatingSystem.IsWindows() || rdp.Length == 0) { return (L("RdpNeedsWindows"), null); }
-        if (!fullScreen) { rdp = rdp.Replace("screen mode id:i:2", "screen mode id:i:1", StringComparison.Ordinal); }
         var file = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"moavi-{Guid.NewGuid():N}.rdp");
         File.WriteAllText(file, rdp);
         try

@@ -7,23 +7,62 @@ using MoaviDesk.UI.Helpers;
 
 namespace MoaviDesk.UI;
 
-/// <summary>MOAVI Desk look: the console's dark navy palette and the M mark.</summary>
+/// <summary>MOAVI Desk look: light surfaces over a picture, a deep-teal accent, the M mark.</summary>
 internal static class Brand
 {
     public const string Product = "MOAVI Desk";
     public const string DefaultSupportUrl = "https://support.makussystems.co.kr/";
 
-    public static readonly Color Bg = Color.Parse("#111B30");
-    public static readonly Color Surface = Color.Parse("#1A2742");
-    public static readonly Color Surface2 = Color.Parse("#101A2E");
-    public static readonly Color Edge = Color.Parse("#2E3D5C");
-    public static readonly Color Text = Color.Parse("#F1F5F9");
-    public static readonly Color Muted = Color.Parse("#B8C4D6");
-    public static readonly Color Accent = Color.Parse("#53B1B1");
-    public static readonly Color OnAccent = Color.Parse("#0F182C");
-    public static readonly Color Ok = Color.Parse("#4ADE80");
-    public static readonly Color Warn = Color.Parse("#F0A35E");
-    public static readonly Color Danger = Color.Parse("#F87171");
+    public static readonly Color Bg = Color.Parse("#F3F6FA");
+    public static readonly Color Surface = Color.Parse("#FFFFFF");
+    public static readonly Color Surface2 = Color.Parse("#F5F8FB");
+    public static readonly Color Edge = Color.Parse("#DCE3EC");
+    public static readonly Color Text = Color.Parse("#0F172A");
+    public static readonly Color Muted = Color.Parse("#5B6B82");
+    public static readonly Color Accent = Color.Parse("#12807C");
+    public static readonly Color OnAccent = Color.Parse("#FFFFFF");
+    public static readonly Color Ok = Color.Parse("#16A34A");
+    public static readonly Color Warn = Color.Parse("#D97706");
+    public static readonly Color Danger = Color.Parse("#DC2626");
+
+    /// <summary>The built-in backgrounds, in the order Settings shows them: key and short Korean / English name.
+    /// The photos are Unsplash licence photos (credits in 3rd-party-licenses.md); "moavi" is MOAVI's own drawing.</summary>
+    public static readonly (string Key, string Ko, string En)[] Backgrounds =
+    [
+        ("1", "노을 산 호수", "Alpine lake at dusk"),
+        ("2", "푸른 호수", "Blue lake"),
+        ("3", "숲 호수", "Forest lake"),
+        ("4", "고요한 호수", "Still lake"),
+        ("5", "구름 하늘", "Cloudy sky"),
+        ("6", "해 뜨는 호수", "Lake at sunrise"),
+        ("moavi", "MOAVI", "MOAVI"),
+    ];
+
+    public const string DefaultBackground = "1";
+
+    /// <summary>The key of a built-in choice, or null when the setting names a file of the user's own.</summary>
+    public static string? BuiltinKey(string setting)
+    {
+        if (string.IsNullOrWhiteSpace(setting)) { return DefaultBackground; }
+        return setting.StartsWith("builtin:", StringComparison.Ordinal) ? setting["builtin:".Length..] : null;
+    }
+
+    public static Avalonia.Media.Imaging.Bitmap BuiltinBitmap(string key, bool thumb = false)
+        => new(Avalonia.Platform.AssetLoader.Open(new Uri($"avares://moavi-desk/Backgrounds/{(thumb ? "thumbs/" : "")}{key}.jpg")));
+
+    /// <summary>The picture behind the windows (설정 › 일반 › 배경): a built-in one or the user's own file.</summary>
+    public static IBrush Backdrop(Config.AppConfig config)
+    {
+        try
+        {
+            var key = BuiltinKey(config.WorkspaceBackground);
+            var bmp = key is null && File.Exists(config.WorkspaceBackground)
+                ? new Avalonia.Media.Imaging.Bitmap(config.WorkspaceBackground)
+                : BuiltinBitmap(Backgrounds.Any(b => b.Key == key) ? key! : DefaultBackground);
+            return new ImageBrush(bmp) { Stretch = Stretch.UniformToFill };
+        }
+        catch { return B(Bg); }
+    }
 
     public static IBrush B(Color c) => new SolidColorBrush(c);
 
@@ -68,14 +107,14 @@ internal static class Brand
     }
 
     /// <summary>Mark + "MOAVI Desk" wordmark.</summary>
-    public static Control Lockup(double markSize = 32, double fontSize = 20)
+    public static Control Lockup(double markSize = 32, double fontSize = 20, Color? ink = null)
     {
         var word = new TextBlock
         {
             VerticalAlignment = VerticalAlignment.Center,
             FontSize = fontSize,
             FontWeight = FontWeight.Bold,
-            Foreground = B(Text),
+            Foreground = B(ink ?? Text),
             Inlines = []
         };
         word.Inlines.Add(new Avalonia.Controls.Documents.Run("MOAVI "));

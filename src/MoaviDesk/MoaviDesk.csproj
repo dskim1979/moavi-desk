@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- the RDP window hosts Windows' Remote Desktop ActiveX control (Services/RdpWindow.cs) -->
+    <UseWindowsForms>true</UseWindowsForms>
     <UseAppHost>true</UseAppHost>
     <AssemblyName>moavi-desk</AssemblyName>
     <RootNamespace>MoaviDesk</RootNamespace>
@@ -20,7 +22,19 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- WinForms only in RdpWindow.cs, under an alias; Avalonia owns the plain names -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
     <AvaloniaResource Include="moavi.ico" Link="icon.ico" />
+    <!-- the built-in backgrounds (Unsplash licence photos + MOAVI's own; 3rd-party-licenses.md) and their thumbnails -->
+    <AvaloniaResource Include="Backgrounds\**\*.jpg" />
+    <!-- Paperlogy (SIL OFL, Fonts/OFL.txt), the console's typeface: the app's default font -->
+    <AvaloniaResource Include="Fonts\*.ttf" />
+    <!-- the RDP window (WinForms) loads two weights from the exe itself: the MSI ships only moavi-desk.exe -->
+    <EmbeddedResource Include="Fonts\Paperlogy-4Regular.ttf;Fonts\Paperlogy-7Bold.ttf" LogicalName="%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

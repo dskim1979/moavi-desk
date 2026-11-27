@@ -88,4 +88,47 @@ internal class AppConfig
 
     /// <summary>Open the windows full screen in kiosk mode (off when a shell replacement sizes them).</summary>
     public bool KioskForceFullScreen { get; set; } = true;
+
+    // Sign-in and desktops
+
+    /// <summary>Keep the password for the next sign-in (encrypted for this Windows user, DPAPI). Never on a
+    /// LAB PC or a kiosk.</summary>
+    public bool RememberPassword { get; set; } = false;
+
+    /// <summary>The kept password, DPAPI-protected for this Windows user (base64); empty = none.</summary>
+    public string SavedPassword { get; set; } = string.Empty;
+
+    /// <summary>Sign in by itself when the client starts (needs a kept password).</summary>
+    public bool AutoSignIn { get; set; } = false;
+
+    /// <summary>The desktop marked with the star (its id); one at a time.</summary>
+    public string FavoriteDesktop { get; set; } = string.Empty;
+
+    /// <summary>After signing in, open the starred desktop (or the only one) straight away.</summary>
+    public bool AutoConnect { get; set; } = false;
+
+    // RDP window (Services/RdpWindow.cs); what the pool policy decides (drives, printers, clipboard) stays the engine's
+
+    /// <summary>Colour depth: 32, 24, 16 or 15.</summary>
+    public int RdpColorDepth { get; set; } = 32;
+
+    /// <summary>Sound: <c>local</c> (on this PC), <c>remote</c> (on the desktop) or <c>off</c>.</summary>
+    public string RdpAudio { get; set; } = "local";
+
+    /// <summary>Send this PC's microphone to the desktop.</summary>
+    public bool RdpMicrophone { get; set; } = false;
+
+    /// <summary>Desktop scale in percent: 0 = follow this PC's display, else 100 / 125 / 150 / 175 / 200.</summary>
+    public int RdpScale { get; set; } = 0;
+
+    /// <summary>Network: <c>auto</c>, <c>lan</c>, <c>broadband</c> or <c>wan</c> (auto measures the link).</summary>
+    public string RdpNetwork { get; set; } = "auto";
+
+    /// <summary>Picture behind the sign-in and desktops windows: <c>builtin:&lt;key&gt;</c> (Brand.Backgrounds),
+    /// a file path of the user's own, or empty = the default built-in one.</summary>
+    public string WorkspaceBackground { get; set; } = string.Empty;
+
+    /// <summary>A LAB PC or a kiosk: shared, so no kept password and no auto sign-in.</summary>
+    [YamlIgnore]
+    public bool IsSharedPc => Kiosk || TerminalKey.Length > 0;
 }
