@@ -147,4 +147,14 @@
   <data name="RdpNetBroadband" xml:space="preserve"><value>광대역</value></data>
   <data name="RdpPolicyNote" xml:space="preserve"><value>드라이브 · 프린터 · 클립보드 · USB는 풀 정책을 따릅니다.</value></data>
   <data name="RdpReconnecting" xml:space="preserve"><value>다시 연결 중…</value></data>
+  <data name="TilePortal" xml:space="preserve"><value>웹 포털</value></data>
+  <data name="TileSupport" xml:space="preserve"><value>원격 지원</value></data>
+  <data name="DesktopInfo" xml:space="preserve"><value>데스크톱 정보</value></data>
+  <data name="DesktopPick" xml:space="preserve"><value>가운데 목록에서 데스크톱을 고르세요.</value></data>
+  <data name="DesktopCount" xml:space="preserve"><value>데스크톱 {0}대</value></data>
+  <data name="DetailPool" xml:space="preserve"><value>풀</value></data>
+  <data name="DetailMemory" xml:space="preserve"><value>메모리</value></data>
+  <data name="DetailProtocols" xml:space="preserve"><value>접속 방식</value></data>
+  <data name="Launch" xml:space="preserve"><value>실행</value></data>
+  <data name="DetailPower" xml:space="preserve"><value>전원</value></data>
 </root>

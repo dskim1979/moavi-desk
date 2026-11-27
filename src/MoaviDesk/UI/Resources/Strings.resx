@@ -167,4 +167,14 @@ Open-source notices: LICENSE.md and 3rd-party-licenses.md in the install folder.
   <data name="RdpNetBroadband"><value>Broadband</value></data>
   <data name="RdpPolicyNote"><value>Drives, printers, clipboard and USB follow the pool policy.</value></data>
   <data name="RdpReconnecting"><value>Reconnecting…</value></data>
+  <data name="TilePortal"><value>Web portal</value></data>
+  <data name="TileSupport"><value>Support</value></data>
+  <data name="DesktopInfo"><value>Desktop</value></data>
+  <data name="DesktopPick"><value>Pick a desktop in the list.</value></data>
+  <data name="DesktopCount"><value>{0} desktops</value></data>
+  <data name="DetailPool"><value>Pool</value></data>
+  <data name="DetailMemory"><value>Memory</value></data>
+  <data name="DetailProtocols"><value>Connection</value></data>
+  <data name="Launch"><value>Open</value></data>
+  <data name="DetailPower"><value>Power</value></data>
 </root>

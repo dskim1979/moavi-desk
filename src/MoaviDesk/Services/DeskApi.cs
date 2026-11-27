@@ -122,6 +122,12 @@ internal sealed class DeskApi : IDisposable
     public bool IgnoreCertificateErrors { get; }
     public string Username { get; private set; } = "";
 
+#if DEBUG
+    /// <summary>Debug builds only: UI/Snapshot.cs renders the main window with these desktops.</summary>
+    public List<DeskInfo>? SnapshotDesktops { get; set; }
+    public void SnapshotUser(string name) => Username = name;
+#endif
+
     /// <summary>The password this sign-in used, kept in memory only, for the desktop's Windows logon
     /// in MOAVI Desk's RDP window (Viewer.SignInPassword). Cleared on sign-out.</summary>
     public string? SignInPassword { get; private set; }
@@ -257,6 +263,9 @@ internal sealed class DeskApi : IDisposable
 
     public async Task<List<DeskInfo>> DesktopsAsync()
     {
+#if DEBUG
+        if (SnapshotDesktops is not null) { return SnapshotDesktops; }
+#endif
         var d = await SendAsync(HttpMethod.Get, "api/vlab/me/desktops");
         return d.TryGetProperty("desktops", out var list)
                 ? list.Deserialize<List<DeskInfo>>(Json) ?? []

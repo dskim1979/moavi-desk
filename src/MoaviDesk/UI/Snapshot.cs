@@ -44,6 +44,22 @@ internal static class Snapshot
                 await Task.Delay(600);
                 Save(settings, System.IO.Path.Combine(dir, file));
             }
+            settings.Close();
+
+            // the launcher with sample desktops (no server needed)
+            var api = new Services.DeskApi("https://127.0.0.1:1", true);
+            api.SnapshotUser("ohjihoon");
+            api.SnapshotDesktops =
+            [
+                new() { Id = "a", Name = "업무용PC-34", Pool = "일반 업무", State = "running", Os = "Windows 11", Protocols = ["rdp", "spice"], Spec = new() { Cpu = 4, MemoryGb = 8 } },
+                new() { Id = "b", Name = "연구원-GPU-02", Pool = "연구원 GPU", State = "stopped", Os = "Windows 11", Protocols = ["rdp"], Spec = new() { Cpu = 8, MemoryGb = 32, Gpu = "NVIDIA L4" } },
+                new() { Id = "c", Name = "ubuntu-build-01", Pool = "빌드 팜", State = "ready", Os = "Ubuntu 24.04", Protocols = ["spice", "vnc"], Spec = new() { Cpu = 16, MemoryGb = 64 } }
+            ];
+            var main = MainWindow.Create(config, api, null, null);
+            main.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            main.Show();
+            await Task.Delay(1500);
+            Save(main, System.IO.Path.Combine(dir, "main.png"));
             lifetime.Shutdown();
         };
         lifetime.MainWindow = login;
