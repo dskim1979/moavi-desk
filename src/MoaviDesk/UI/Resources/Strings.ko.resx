@@ -177,4 +177,36 @@
   <data name="BackgroundReset" xml:space="preserve"><value>기본 배경으로</value></data>
   <data name="WelcomeTitle" xml:space="preserve"><value>MOAVI Desk에 오신 것을 환영합니다</value></data>
   <data name="ShowPassword" xml:space="preserve"><value>비밀번호 보기</value></data>
+  <data name="NavRecent" xml:space="preserve"><value>최근 사용</value></data>
+  <data name="RailLeases" xml:space="preserve"><value>대여 중</value></data>
+  <data name="RailLinks" xml:space="preserve"><value>바로 가기</value></data>
+  <data name="LeaseEnds" xml:space="preserve"><value>{0}까지</value></data>
+  <data name="SortRecent" xml:space="preserve"><value>최근 접속순</value></data>
+  <data name="StatusUpdated" xml:space="preserve"><value>{0} 갱신</value></data>
+  <data name="AgoJustNow" xml:space="preserve"><value>방금</value></data>
+  <data name="AgoMinutes" xml:space="preserve"><value>{0}분 전</value></data>
+  <data name="AgoHours" xml:space="preserve"><value>{0}시간 전</value></data>
+  <data name="AgoDays" xml:space="preserve"><value>{0}일 전</value></data>
+  <data name="LastConnected" xml:space="preserve"><value>최근 접속 {0}</value></data>
+  <data name="ScreenOff" xml:space="preserve"><value>화면 꺼짐</value></data>
+  <data name="ScreenTip" xml:space="preserve"><value>20초마다 갱신 · RDP로 쓰는 중이면 잠금 화면이 보입니다</value></data>
+  <data name="PanelPick" xml:space="preserve"><value>데스크톱을 고르면 정보가 여기에 나옵니다.</value></data>
+  <data name="PanelDetails" xml:space="preserve"><value>정보</value></data>
+  <data name="PanelResources" xml:space="preserve"><value>연결된 장치</value></data>
+  <data name="PanelStorage" xml:space="preserve"><value>공유 폴더</value></data>
+  <data name="RowOs" xml:space="preserve"><value>OS</value></data>
+  <data name="RowPool" xml:space="preserve"><value>풀</value></data>
+  <data name="RowSpec" xml:space="preserve"><value>사양</value></data>
+  <data name="RowSignedIn" xml:space="preserve"><value>로그인</value></data>
+  <data name="RowLast" xml:space="preserve"><value>최근 접속</value></data>
+  <data name="RowClipboard" xml:space="preserve"><value>클립보드</value></data>
+  <data name="ClipBoth" xml:space="preserve"><value>양방향</value></data>
+  <data name="ClipIn" xml:space="preserve"><value>PC → 데스크톱만</value></data>
+  <data name="ClipOut" xml:space="preserve"><value>데스크톱 → PC만</value></data>
+  <data name="ClipOff" xml:space="preserve"><value>사용 안 함</value></data>
+  <data name="CopyPath" xml:space="preserve"><value>경로 복사</value></data>
+  <data name="Copied" xml:space="preserve"><value>복사했습니다: {0}</value></data>
+  <data name="Folder_home" xml:space="preserve"><value>내 폴더</value></data>
+  <data name="Folder_project" xml:space="preserve"><value>프로젝트</value></data>
+  <data name="Folder_scratch" xml:space="preserve"><value>임시 공간</value></data>
 </root>
