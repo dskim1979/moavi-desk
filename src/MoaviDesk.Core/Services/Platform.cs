@@ -67,6 +67,9 @@ internal static class Platform
     /// <summary>RDP; null = RDP is not offered here.</summary>
     public static IRdpClient? Rdp { get; set; }
 
+    /// <summary>Where the kept sign-in password is protected; null = the password is not kept here.</summary>
+    public static IVault? Vault { get; set; } = OperatingSystem.IsWindows() ? new DpapiVault() : null;
+
     /// <summary>Whether SPICE / VNC open in remote-viewer here (not on Android).</summary>
     public static bool RemoteViewer { get; set; } = true;
 

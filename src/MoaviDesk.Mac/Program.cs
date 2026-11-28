@@ -16,6 +16,7 @@ internal sealed class Program
     {
         var config = AppConfigManager.Load();
         ApplyLanguage(config.Language);
+        Platform.Vault = KeychainVault.Create();
         Platform.Rdp = FreeRdpClient.Find() is { } freerdp ? new FreeRdpClient(freerdp, config) : null;
         return MoaviApp.RunDesktop(AppBuilder.Configure<Application>()
                                              .UsePlatformDetect()

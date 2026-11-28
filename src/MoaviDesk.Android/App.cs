@@ -28,6 +28,7 @@ public sealed class App : Application
             ApplyLanguage(config.Language);
             Platform.Rdp = AndroidRdp.Available() ? new AndroidRdp(config) : null;
             Platform.RemoteViewer = false;
+            Platform.Vault = new KeystoreVault();
             Platform.OpenUrl = AndroidHost.OpenUrl;
 
             var stack = new PageStack();
