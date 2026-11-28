@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- What every MOAVI Desk app shares: sign-in, the desktop list and its panel, settings, the engine API,
+       SPICE / VNC through remote-viewer. Each platform app (MoaviDesk = Windows, MoaviDesk.Mac,
+       MoaviDesk.Android) adds its own RDP connection (Services/Platform.cs: IRdpClient). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>MoaviDesk.Core</AssemblyName>
+    <RootNamespace>MoaviDesk</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTrimmable>false</IsTrimmable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="moavi-desk" />
+    <InternalsVisibleTo Include="MoaviDesk.Mac" />
+    <InternalsVisibleTo Include="MoaviDesk.Android" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="moavi.ico" Link="icon.ico" />
+    <!-- the built-in backgrounds (Unsplash licence photos + MOAVI's own; 3rd-party-licenses.md) and their thumbnails -->
+    <AvaloniaResource Include="Backgrounds\**\*.jpg" />
+    <!-- Paperlogy (SIL OFL, Fonts/OFL.txt), the console's typeface: the app's default font -->
+    <AvaloniaResource Include="Fonts\*.ttf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="YamlDotNet" />
+    <!-- PasswordVault keeps the remembered password with DPAPI (Windows only; elsewhere nothing is kept) -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+  </ItemGroup>
+</Project>

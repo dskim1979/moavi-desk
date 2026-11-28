@@ -7,7 +7,7 @@ namespace MoaviDesk.UI.Helpers;
 
 internal static class DialogHelper
 {
-    public static async Task MessageAsync(Window owner, string message, NotificationSeverity severity = NotificationSeverity.Info)
+    public static async Task MessageAsync(Page owner, string message, NotificationSeverity severity = NotificationSeverity.Info)
     {
         var titleKey = severity switch
         {
@@ -24,7 +24,7 @@ internal static class DialogHelper
         };
 
         var tcs = new TaskCompletionSource<bool>();
-        var dlg = new Window
+        var dlg = new Page
         {
             Title = L(titleKey),
             Width = 360,
@@ -70,10 +70,10 @@ internal static class DialogHelper
         await tcs.Task;
     }
 
-    public static async Task<bool> ConfirmAsync(Window owner, string message)
+    public static async Task<bool> ConfirmAsync(Page owner, string message)
     {
         var tcs = new TaskCompletionSource<bool>();
-        var dlg = new Window
+        var dlg = new Page
         {
             Title = L("Confirm"),
             Width = 320,

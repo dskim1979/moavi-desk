@@ -27,7 +27,7 @@ internal static class KioskGuard
     /// prompts the user for the admin password and returns true only on a correct answer.
     /// Outside kiosk mode, always returns true.
     /// </summary>
-    public static async Task<bool> CheckAsync(Window owner, AppConfig config)
+    public static async Task<bool> CheckAsync(Page owner, AppConfig config)
     {
         if (!config.Kiosk) { return true; }
         if (string.IsNullOrEmpty(config.KioskAdminPasswordHash)) { return true; }
@@ -46,7 +46,7 @@ internal static class KioskGuard
         return false;
     }
 
-    private static async Task<string?> PromptPasswordAsync(Window owner)
+    private static async Task<string?> PromptPasswordAsync(Page owner)
     {
         var tcs = new TaskCompletionSource<string?>();
 
@@ -56,7 +56,7 @@ internal static class KioskGuard
         var btnOk = new Button { Content = L("Ok"), Width = 80, HorizontalContentAlignment = HorizontalAlignment.Center };
         var btnCancel = new Button { Content = L("Cancel"), Width = 80, HorizontalContentAlignment = HorizontalAlignment.Center };
 
-        var dlg = new Window
+        var dlg = new Page
         {
             Title = L("KioskUnlockPrompt"),
             Width = 340,

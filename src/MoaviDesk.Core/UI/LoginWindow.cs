@@ -27,9 +27,9 @@ internal static class LoginWindow
 
     private static bool _autoTried;
 
-    public static Window Create(AppConfig config)
+    public static Page Create(AppConfig config)
     {
-        var window = new Window
+        var window = new Page
         {
             Title = $"{Product} · {L("Login")}",
             Width = 1120,
