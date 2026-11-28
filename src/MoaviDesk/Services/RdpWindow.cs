@@ -215,6 +215,9 @@ internal static class RdpWindow
         private readonly WF.Label _status;
         private readonly WF.Timer _watch = new() { Interval = 500 };
         private readonly WF.Timer _resize = new() { Interval = 400 };
+        private readonly WF.Button _fullBtn;
+        private bool _isFull;
+        private SD.Rectangle _windowed;
         private RdpHost? _host;
         private dynamic? _rdp;
         private bool _wasConnected;
@@ -228,7 +231,6 @@ internal static class RdpWindow
             _pending = pending;
             _passwordLine = password;
             _name = name.Length > 0 ? name : "MOAVI Desk";
-            if (full) { WindowState = WF.FormWindowState.Maximized; }
             _full = full;
             _config = config;
             Text = $"{_name} - MOAVI Desk";
@@ -236,7 +238,9 @@ internal static class RdpWindow
             StartPosition = WF.FormStartPosition.CenterScreen;
             var area = WF.Screen.PrimaryScreen?.WorkingArea ?? new SD.Rectangle(0, 0, 1600, 900);
             Size = new SD.Size(Math.Min(1600, area.Width * 9 / 10), Math.Min(960, area.Height * 9 / 10));
-            if (_full) { WindowState = WF.FormWindowState.Maximized; }   // full screen once connected; until then the whole screen too
+            // full screen is this window itself (borderless over the whole screen, the MOAVI Desk bar on top) -
+            // never the control's own full screen, which put up Windows' Remote Desktop window and its blue bar
+            if (_full) { Load += (_, _) => SetFull(true); }
             try { Icon = SD.Icon.ExtractAssociatedIcon(Environment.ProcessPath!); } catch { }
 
             var bar = new WF.Panel { Dock = WF.DockStyle.Top, Height = 40, BackColor = Bar, Padding = new WF.Padding(12, 0, 8, 0) };
@@ -260,7 +264,8 @@ internal static class RdpWindow
             devices.Click += (_, _) => ShowDevices(devices);
             buttons.Controls.Add(devices);
             buttons.Controls.Add(BarButton(L("RdpCtrlAltDel"), (_, _) => SendCtrlAltDel()));
-            buttons.Controls.Add(BarButton(L("RdpFullScreen"), (_, _) => GoFullScreen()));
+            _fullBtn = BarButton(L("RdpFullScreen"), (_, _) => SetFull(!_isFull));
+            buttons.Controls.Add(_fullBtn);
             buttons.Controls.Add(BarButton(L("RdpDisconnect"), (_, _) => Close(), Accent));
             bar.Controls.Add(_status);
             bar.Controls.Add(title);
@@ -364,7 +369,7 @@ internal static class RdpWindow
             r.AdvancedSettings5.AuthenticationLevel = int.TryParse(S("authentication level", "2"), out var auth) ? auth : 2;
             r.AdvancedSettings.Compress = 1;
             r.AdvancedSettings2.BitmapPeristence = 1;
-            r.AdvancedSettings2.DisplayConnectionBar = true;
+            r.AdvancedSettings2.DisplayConnectionBar = false;   // the control's own full screen is not used
             r.AdvancedSettings2.EnableAutoReconnect = true;
             // auto measures the link and picks UDP and H.264 when offered; the others pin the experience level
             var net = _config.RdpNetwork switch { "lan" => 6, "broadband" => 4, "wan" => 5, _ => 7 };
@@ -416,7 +421,6 @@ internal static class RdpWindow
                 if (!_wasConnected)
                 {
                     _wasConnected = true;
-                    if (_full) { GoFullScreen(); }
                     FitSession();
                 }
                 _status.Text = L("RdpConnected");
@@ -503,9 +507,24 @@ internal static class RdpWindow
             menu.Show(anchor, new SD.Point(0, anchor.Height));
         }
 
-        private void GoFullScreen()
+        // full screen: this window without its frame over the whole screen it is on; again = back to the window
+        private void SetFull(bool on)
         {
-            try { if ((int)_rdp!.Connected == 1) { _rdp.FullScreen = true; } } catch { }
+            if (on == _isFull) { return; }
+            if (on)
+            {
+                _windowed = WindowState == WF.FormWindowState.Normal ? Bounds : RestoreBounds;
+                WindowState = WF.FormWindowState.Normal;
+                FormBorderStyle = WF.FormBorderStyle.None;
+                Bounds = WF.Screen.FromControl(this).Bounds;
+            }
+            else
+            {
+                FormBorderStyle = WF.FormBorderStyle.Sizable;
+                Bounds = _windowed.Width > 0 ? _windowed : new SD.Rectangle(100, 100, 1280, 800);
+            }
+            _isFull = on;
+            _fullBtn.Text = L(on ? "RdpWindowed" : "RdpFullScreen");
         }
 
         private void SendCtrlAltDel()

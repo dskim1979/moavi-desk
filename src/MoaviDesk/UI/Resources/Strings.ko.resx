@@ -225,4 +225,5 @@
   <data name="RdpDevOn" xml:space="preserve"><value>연결됨</value></data>
   <data name="RdpDevOff" xml:space="preserve"><value>꺼짐</value></data>
   <data name="RdpDevUnread" xml:space="preserve"><value>장치 목록을 읽지 못했습니다</value></data>
+  <data name="RdpWindowed" xml:space="preserve"><value>창 모드</value></data>
 </root>

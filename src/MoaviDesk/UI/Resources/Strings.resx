@@ -245,4 +245,5 @@ Open-source notices: LICENSE.md and 3rd-party-licenses.md in the install folder.
   <data name="RdpDevOn"><value>on</value></data>
   <data name="RdpDevOff"><value>off</value></data>
   <data name="RdpDevUnread"><value>Could not read the device list</value></data>
+  <data name="RdpWindowed"><value>Window</value></data>
 </root>
