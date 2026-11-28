@@ -84,8 +84,16 @@ internal static class Snapshot
             main.Show();
             await Task.Delay(1500);
             Save(main, System.IO.Path.Combine(dir, "main.png"));
-            // a phone's width (Android)
+            // a tablet across and upright (Android)
             main.Window!.MinWidth = 0;
+            foreach (var (w, h, file) in new[] { (1280, 800, "main-tablet-landscape.png"), (800, 1280, "main-tablet-portrait.png") })
+            {
+                main.Window.Width = w;
+                main.Window.Height = h;
+                await Task.Delay(1000);
+                Save(main, System.IO.Path.Combine(dir, file));
+            }
+            // a phone's width (Android)
             main.Window.Width = 400;
             main.Window.Height = 820;
             await Task.Delay(1000);

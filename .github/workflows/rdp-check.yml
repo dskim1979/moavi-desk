@@ -163,6 +163,16 @@ jobs:
           disable-animations: true
           script: ./installer/android/check-on-emulator.sh "$(ls artifacts/android-check/*-Signed.apk | head -1)" artifacts/android-out
 
+      - name: On a tablet emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_tablet
+          disable-animations: true
+          script: ./installer/android/check-on-emulator.sh "$(ls artifacts/android-check/*-Signed.apk | head -1)" artifacts/android-out/tablet
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
