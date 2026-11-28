@@ -155,7 +155,13 @@ internal sealed class MacRdp(AppConfig config) : IRdpClient
             {
                 if (fullScreen) { _page.WindowState = WindowState.FullScreen; full.Content = L("RdpWindowed"); }
                 surface.Focus();
-                Connect(args);
+                // the desktop starts at the window's size (after full screen settled): no size change right after
+                // connecting, which some servers (xrdp) answer by re-activating the connection
+                DispatcherTimer.RunOnce(() =>
+                {
+                    var (pw, ph) = Pixels(surface);
+                    Connect([.. args, $"/size:{pw}x{ph}"]);
+                }, TimeSpan.FromMilliseconds(400));
             };
             if (_page.Window is { } w)
             {
@@ -338,14 +344,24 @@ internal sealed class MacRdp(AppConfig config) : IRdpClient
             Key(0x153, false); Key(0x38, false); Key(0x1D, false);
         }
 
+        private (int W, int H) Pixels(Control surface)
+        {
+            var scale = _page.Window?.RenderScaling ?? 1;
+            var w = Math.Max(640, (int)(surface.Bounds.Width * scale)) & ~1;
+            var h = Math.Max(400, (int)(surface.Bounds.Height * scale));
+            return (w, h);
+        }
+
         private void QueueResize(Control surface)
         {
             _resize ??= new DispatcherTimer(TimeSpan.FromMilliseconds(600), DispatcherPriority.Background, (_, _) =>
             {
                 _resize!.Stop();
-                if (_h == IntPtr.Zero) { return; }
-                var scale = _page.Window?.RenderScaling ?? 1;
-                moavi_rdp_resize(_h, (int)(surface.Bounds.Width * scale), (int)(surface.Bounds.Height * scale), (int)Math.Round(scale * 100));
+                if (_h == IntPtr.Zero || !_connected) { return; }
+                var (pw, ph) = Pixels(surface);
+                // only when the user changed the window: the desktop already has this size
+                if (_bitmap is { } b && Math.Abs(b.PixelSize.Width - pw) < 8 && Math.Abs(b.PixelSize.Height - ph) < 8) { return; }
+                moavi_rdp_resize(_h, pw, ph, (int)Math.Round((_page.Window?.RenderScaling ?? 1) * 100));
             });
             _resize.Stop();
             _resize.Start();

@@ -74,12 +74,12 @@ internal sealed record DevicePolicy(bool Drives, bool Printers, bool Clipboard)
     }
 }
 
-/// <summary>The CI's RDP check (rdp-check.yml): an .rdp for a test server, "host:port|user|password".</summary>
+/// <summary>The CI's RDP check (rdp-check.yml): an .rdp for a test server, "host:port,user,password".</summary>
 internal static class TestRdp
 {
     public static (string Rdp, string Password) Of(string spec)
     {
-        var p = spec.Split('|');
+        var p = spec.Split(',', '|');
         return (string.Join("\r\n", $"full address:s:{p[0]}", $"username:s:{p[1]}", "enablecredsspsupport:i:0",
                             "redirectclipboard:i:1", "drivestoredirect:s:*", "screen mode id:i:1", ""), p.Length > 2 ? p[2] : "");
     }

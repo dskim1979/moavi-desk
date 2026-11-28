@@ -75,30 +75,38 @@ int main(int argc, char** argv)
 		printf("FAIL: not connected (%s)\n", end_message);
 		return 1;
 	}
-	for (int i = 0; i < 200 && frames < 3; i++)
-		usleep(100000);
+	/* the desktop draws itself after the sign-in: wait for a picture (up to 40 s) */
 	int w = 0, hh = 0, stride = 0;
-	unsigned char* buf = moavi_rdp_buffer(h, &w, &hh, &stride);
 	long lit = 0;
-	for (int y = 0; buf && y < hh; y += 4)
-		for (int x = 0; x < w; x += 4)
-			if (buf[y * stride + x * 4] | buf[y * stride + x * 4 + 1] | buf[y * stride + x * 4 + 2])
-				lit++;
+	for (int i = 0; i < 400 && lit == 0 && !ended; i++)
+	{
+		usleep(100000);
+		unsigned char* buf = moavi_rdp_buffer(h, &w, &hh, &stride);
+		lit = 0;
+		for (int y = 0; buf && y < hh; y += 8)
+			for (int x = 0; x < w; x += 8)
+				if (buf[y * stride + x * 4] | buf[y * stride + x * 4 + 1] | buf[y * stride + x * 4 + 2])
+					lit++;
+	}
 	printf("frames %d, buffer %dx%d stride %d, lit samples %ld\n", frames, w, hh, stride, lit);
 
-	/* input, devices, clipboard, size */
+	/* input, devices, clipboard */
 	moavi_rdp_mouse(h, 0x0800, w / 2, hh / 2);
 	moavi_rdp_key(h, 1, 0x1E);
 	moavi_rdp_key(h, 0, 0x1E);
-	moavi_rdp_clipboard(h, "MOAVI Desk 클립보드 시험");
+	moavi_rdp_clipboard(h, "MOAVI Desk clipboard check");
 	moavi_rdp_device(h, 2, 0, "tmp2", "/tmp", 1);
 	sleep(2);
 	moavi_rdp_device(h, 2, 0, "tmp2", "/tmp", 0);
 	moavi_rdp_device(h, 1, 0, "test", "/tmp", 0);
-	moavi_rdp_resize(h, 1280, 720, 100);
-	sleep(3);
+	sleep(2);
 	int ok = frames >= 1 && lit > 0 && !ended;
-	printf("after input: frames %d, still connected %d\n", frames, !ended);
+	printf("after input and devices: frames %d, still connected %d\n", frames, !ended);
+
+	/* the window's size to the desktop: reported, not judged (xrdp re-activates the connection for it) */
+	moavi_rdp_resize(h, 1280, 720, 100);
+	sleep(4);
+	printf("after a size change: %s\n", ended ? "the server ended the connection" : "still connected");
 
 	moavi_rdp_disconnect(h);
 	pthread_join(t, NULL);

@@ -15,7 +15,7 @@ permissions:
 
 env:
   FREERDP_VERSION: 3.33.1
-  RDP_IMAGE: lscr.io/linuxserver/rdesktop:ubuntu-openbox
+  RDP_IMAGE: lscr.io/linuxserver/rdesktop:ubuntu-xfce
 
 jobs:
   linux:

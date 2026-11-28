@@ -10,7 +10,7 @@ mkdir -p "$OUT"
 adb install -r "$APK"
 adb logcat -c
 adb shell am start -n com.makussystems.moavidesk/com.makussystems.moavidesk.MainActivity \
-  --es moavi.test.rdp "10.0.2.2:3389|abc|abc"
+  --es moavi.test.rdp "10.0.2.2:3389,abc,abc"
 ok=1
 for i in $(seq 1 60); do
   sleep 2

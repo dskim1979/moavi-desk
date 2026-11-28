@@ -39,16 +39,20 @@ public sealed class App : Application
             single.MainView = stack;
             LoginWindow.Create(config).Show();
 #if MOAVI_TEST
-            // adb shell am start -n com.makussystems.moavidesk/com.makussystems.moavidesk.MainActivity --es moavi.test.rdp "host:port|user|password"
+            // adb shell am start -n com.makussystems.moavidesk/com.makussystems.moavidesk.MainActivity --es moavi.test.rdp "host:port,user,password"
             Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
             {
                 await Task.Delay(3000);
-                if (AndroidHost.Main?.Intent?.GetStringExtra("moavi.test.rdp") is { Length: > 0 } spec && Platform.Rdp is { } rdp)
+                try
                 {
-                    var (file, password) = TestRdp.Of(spec);
-                    var (error, _) = await rdp.OpenAsync(file, "RDP check", false, password, new DevicePolicy(true, true, true));
-                    Android.Util.Log.Info("MoaviDesk", $"RDP check open: {(error.Length == 0 ? "ok" : error)}");
+                    if (AndroidHost.Main?.Intent?.GetStringExtra("moavi.test.rdp") is { Length: > 0 } spec && Platform.Rdp is { } rdp)
+                    {
+                        var (file, password) = TestRdp.Of(spec);
+                        var (error, _) = await rdp.OpenAsync(file, "RDP check", false, password, new DevicePolicy(true, true, true));
+                        Android.Util.Log.Info("MoaviDesk", $"RDP check open: {(error.Length == 0 ? "ok" : error)}");
+                    }
                 }
+                catch (Exception ex) { Android.Util.Log.Error("MoaviDesk", $"RDP check: {ex}"); }
             });
 #endif
         }
