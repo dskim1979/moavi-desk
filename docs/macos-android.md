@@ -6,10 +6,11 @@ RDP 연결부만 플랫폼별로 다릅니다.
 | | Windows | macOS | Android |
 |---|---|---|---|
 | 프로젝트 | `src/MoaviDesk` | `src/MoaviDesk.Mac` | `src/MoaviDesk.Android` |
-| RDP | Windows 원격 데스크톱 컨트롤(MOAVI Desk 창) | FreeRDP 3 `sdl3-freerdp`(앱 안에 포함, 별도 창) | FreeRDP 3 Android 세션 화면(APK 안에 포함) |
+| RDP | Windows 원격 데스크톱 컨트롤(MOAVI Desk 창) | FreeRDP 3(`libmoavi-rdp`, MOAVI Desk 창 안) | FreeRDP 3 Android 세션 화면(APK 안에 포함, H.264) |
 | 장치 연결 방식(rdpgw) | `GatewayEncryptedAuthCookie` | `/gateway:…,access-token:` | 같음 |
 | Warpgate | 티켓 = 사용자 이름 | 티켓 = 사용자 이름, `/sec:tls` | 같음 |
-| SPICE / VNC | 포함된 remote-viewer | `brew install virt-viewer` | 없음(RDP만) |
+| SPICE / VNC | 포함된 remote-viewer | `brew install virt-viewer` | VNC: 앱 안 뷰어, SPICE: aSPICE 앱으로 넘김 |
+| 비밀번호 기억 | DPAPI | 키체인 | Android Keystore |
 | 배포 | MSI | `.dmg`(arm64, x64) | APK |
 
 `.rdp`를 FreeRDP 옵션으로 바꾸는 곳은 `src/MoaviDesk.Core/Services/FreeRdpArgs.cs`입니다.
@@ -58,9 +59,18 @@ FreeRDP는 소스에서 빌드하고 버전별로 캐시합니다. 첫 실행은
    - 휴대폰의 뒤로 가기 버튼은 맨 위 화면(대화상자, 설정)을 닫습니다.
 5. 문제가 생기면 `adb logcat | grep -iE "freerdp|moavi|mono"`로 로그를 봅니다.
 
+## 키보드(macOS 원격 창)
+- ⌘는 Ctrl로 보냅니다(⌘C, ⌘V로 복사·붙여넣기).
+- 오른쪽 ⌘와 막대의 "한/영" 버튼은 한/영 전환입니다.
+- Control을 누른 채 클릭하면 오른쪽 클릭입니다.
+
+## 휴대폰
+- 화면이 좁으면 데스크톱을 누를 때 세부 패널(정보, 공유 폴더, 장치 선택, 시작·종료)이 목록 위에 열립니다.
+- "목록으로" 또는 뒤로 가기로 닫습니다.
+- VNC 화면에서는 탭이 클릭이고, 길게 누르면 오른쪽 클릭, 끌면 드래그입니다.
+- 막대의 "키보드"를 누르면 휴대폰 자판이 뜹니다.
+
 ## 아직 안 되는 것
-- macOS RDP는 MOAVI Desk 창 안이 아니라 FreeRDP 자체 창으로 열립니다(2단계에서 창 안에 그리기).
-- Android에서는 SPICE/VNC를 지원하지 않고, 비밀번호 기억(Keychain/Keystore)도 아직 없습니다.
-- Android 화면 폭에서는 왼쪽 필터와 오른쪽 세부 패널이 숨겨집니다. 데스크톱별 장치 선택은 넓은 화면(태블릿 가로)에서만 할 수 있습니다.
-- Android FreeRDP는 H.264(AVC) 디코더 없이 빌드됩니다. 데스크톱이 AVC를 쓰면 다른 코덱으로 내려갑니다.
-- 릴리스 워크플로(`release.yml`)는 아직 Windows만 올립니다.
+- macOS 원격 창의 "장치" 메뉴는 이번 연결의 상태만 보여 줍니다. 바꾸려면 세부 패널에서 고친 뒤 다시 접속합니다.
+- Android의 RDP 화면은 FreeRDP 세션 화면이라, 위쪽 MOAVI Desk 막대가 없습니다.
+- 릴리스 워크플로가 macOS·Android까지 올리는지는 다음 태그에서 확인합니다.
