@@ -57,7 +57,7 @@ internal static class MainWindow
         // the screen pictures (as the portal card shows them), the selected tile, loans and notices
         var shots = new Dictionary<string, (Bitmap? Image, bool Off)>();
         string? selectedId = null;
-        var armedAt = new Dictionary<string, DateTime>();   // desktop id -> when its sign-in was armed ahead
+        string? armedFor = null;   // the desktop whose sign-in was armed ahead: once per pick, not on every refresh
         var leases = new List<LeaseInfo>();
         var banners = new List<BannerInfo>();
         DateTime? refreshedAt = null;
@@ -401,9 +401,11 @@ internal static class MainWindow
             var (stateText, stateColor) = State(d);
             // 자동 로그인: arm it while the user looks at the desktop, so the connect only checks it
             if (Running(d) && d.Policy?.DesktopSso == true && d.Protocols.Contains("rdp", StringComparer.OrdinalIgnoreCase)
-                && (!armedAt.TryGetValue(d.Id, out var at) || DateTime.UtcNow - at > TimeSpan.FromMinutes(2)))
+                && armedFor != d.Id)
             {
-                armedAt[d.Id] = DateTime.UtcNow;
+                // once when it is picked (200 users idling with a desktop picked must not keep the guests busy);
+                // a connect much later arms it itself
+                armedFor = d.Id;
                 _ = api.ArmSignInAsync(d.Id);
             }
 
