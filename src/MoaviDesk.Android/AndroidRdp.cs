@@ -39,6 +39,12 @@ internal sealed class AndroidRdp(AppConfig config) : IRdpClient
             var options = FreeRdpArgs.Build(rdp, title, fullScreen, password, config, phone: true)
                                      .Where(o => o.Name is not ("drive" or "clipboard")).ToList();
             options.Add(("clipboard", allowed.Clipboard ? "+" : "-"));
+            // the phone's or tablet's whole screen (not FreeRDP's 1024×768), with Windows' scale for its density so
+            // text is not tiny on a high-resolution tablet
+            var m = activity.Resources!.DisplayMetrics!;
+            var scale = Math.Clamp((int)Math.Round(m.Density * 100 / 25.0) * 25, 100, 300);
+            options.Add(("size", $"{m.WidthPixels & ~1}x{m.HeightPixels}"));
+            options.Add(("scale-desktop", scale.ToString(System.Globalization.CultureInfo.InvariantCulture)));
             var address = options.First(o => o.Name == "v").Value;
             var query = string.Join('&', options.Where(o => o.Name != "v")
                                                 .Select(o => $"{Uri.EscapeDataString(o.Name)}={Uri.EscapeDataString(o.Value)}"));
