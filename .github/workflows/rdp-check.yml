@@ -38,7 +38,7 @@ jobs:
         if: steps.freerdp.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q ninja-build libssl-dev zlib1g-dev libcjson-dev liburiparser-dev pkg-config
+          sudo apt-get install -y -q ninja-build libssl-dev zlib1g-dev libcjson-dev liburiparser-dev libicu-dev pkg-config
           git clone --depth 1 -b "$FREERDP_VERSION" https://github.com/FreeRDP/FreeRDP.git artifacts/freerdp-src
           cmake -GNinja -B artifacts/freerdp-build -S artifacts/freerdp-src -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$PWD/artifacts/freerdp-linux" -DCMAKE_INSTALL_LIBDIR=lib \

@@ -314,6 +314,13 @@ static DWORD verify_changed_certificate(freerdp* instance, const char* host, UIN
 	return 0;
 }
 
+/* never FreeRDP's console prompt: the connection goes on with what MOAVI Desk gave it (the desktop's own logon
+ * screen asks when nothing was given; NLA without a password ends with FreeRDP's error, shown in the bar) */
+static BOOL authenticate(freerdp* instance, char** username, char** password, char** domain, rdp_auth_reason reason)
+{
+	return TRUE;
+}
+
 static BOOL client_new(freerdp* instance, rdpContext* context)
 {
 	moavi_context* m = M(context);
@@ -322,6 +329,7 @@ static BOOL client_new(freerdp* instance, rdpContext* context)
 	instance->PostConnect = post_connect;
 	instance->PostDisconnect = post_disconnect;
 	instance->VerifyCertificateEx = verify_certificate;
+	instance->AuthenticateEx = authenticate;
 	instance->VerifyChangedCertificateEx = verify_changed_certificate;
 	return TRUE;
 }

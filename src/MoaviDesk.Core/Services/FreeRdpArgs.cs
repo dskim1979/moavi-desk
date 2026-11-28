@@ -33,6 +33,9 @@ internal static class FreeRdpArgs
         if (S("username") is { Length: > 0 } user) { o.Add(("u", user)); }
         if (S("domain") is { Length: > 0 } domain) { o.Add(("d", domain)); }
         if (!string.IsNullOrEmpty(password)) { o.Add(("p", password)); }
+        // Warpgate: the single-use ticket is the sign-in, the client's password is not used - a stand-in keeps
+        // FreeRDP from asking for one (it asks whenever no password is set; checked on .55, 2026-11-28)
+        else if (S("username").StartsWith("ticket-", StringComparison.Ordinal)) { o.Add(("p", "warpgate")); }
         if (S("enablecredsspsupport") == "0") { o.Add(("sec", "tls")); }
 
         var gateway = S("gatewayhostname");
