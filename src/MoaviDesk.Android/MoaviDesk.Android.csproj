@@ -16,6 +16,8 @@
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <!-- the engine's JSON and the YAML settings are read by reflection: nothing trimmed -->
     <PublishTrimmed>false</PublishTrimmed>
+    <!-- AOT needs trimming: the JIT then (a slower first start, nothing left out) -->
+    <RunAOTCompilation>false</RunAOTCompilation>
     <IsPackable>false</IsPackable>
     <FreeRdpAar Condition="'$(FreeRdpAar)' == ''">$(MSBuildThisFileDirectory)..\..\artifacts\freerdp-android\freeRDPCore-release.aar</FreeRdpAar>
   </PropertyGroup>
