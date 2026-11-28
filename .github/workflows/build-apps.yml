@@ -111,7 +111,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: artifacts/freerdp-android
-          key: freerdp-android-${{ env.FREERDP_VERSION }}-${{ hashFiles('installer/android/build-freerdp.sh') }}
+          key: freerdp-android-${{ env.FREERDP_VERSION }}-${{ hashFiles('installer/android/build-freerdp.sh', 'installer/android/moavi/**') }}
 
       - name: Build FreeRDP
         if: steps.freerdp.outputs.cache-hit != 'true'

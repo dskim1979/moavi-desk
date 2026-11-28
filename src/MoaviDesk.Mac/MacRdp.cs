@@ -28,7 +28,9 @@ internal sealed class MacRdp(AppConfig config) : IRdpClient
 
     public static bool Available()
     {
-        try { return NativeLibrary.TryLoad(System.IO.Path.Combine(AppContext.BaseDirectory, "libmoavi-rdp.dylib"), out _); }
+        // libmoavi-rdp.dylib in the app (libmoavi-rdp.so: the CI's check on Linux)
+        var file = OperatingSystem.IsMacOS() ? "libmoavi-rdp.dylib" : "libmoavi-rdp.so";
+        try { return NativeLibrary.TryLoad(System.IO.Path.Combine(AppContext.BaseDirectory, file), out _); }
         catch { return false; }
     }
 
@@ -246,6 +248,7 @@ internal sealed class MacRdp(AppConfig config) : IRdpClient
 
         public void State(int state, string message) => Dispatcher.UIThread.Post(() =>
         {
+            Console.WriteLine($"rdp state {state} {message}");
             if (state == 1)
             {
                 _connected = true;

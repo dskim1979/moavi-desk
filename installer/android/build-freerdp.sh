@@ -18,6 +18,8 @@ if [ ! -d "$SRC/.git" ]; then
   git clone --depth 1 -b "$FREERDP_VERSION" https://github.com/FreeRDP/FreeRDP.git "$SRC"
 fi
 STUDIO="$SRC/client/Android/Studio"
+# MOAVI Desk's bar on the session screen (installer/android/moavi)
+python3 "$HERE/moavi/patch.py" "$SRC"
 
 # phones and tablets (arm64) and the emulator (x86_64); OpenSSL, cJSON, OpenH264 (H.264 / AVC, built from source) and Opus
 cat > "$STUDIO/release.properties" <<'PROPS'

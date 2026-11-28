@@ -18,6 +18,8 @@
     <PublishTrimmed>false</PublishTrimmed>
     <!-- AOT needs trimming: the JIT then (a slower first start, nothing left out) -->
     <RunAOTCompilation>false</RunAOTCompilation>
+    <!-- -p:MoaviTest=true: the CI's RDP check (an intent with moavi.test.rdp opens the RDP screen at start) -->
+    <DefineConstants Condition="'$(MoaviTest)' == 'true'">$(DefineConstants);MOAVI_TEST</DefineConstants>
     <IsPackable>false</IsPackable>
     <FreeRdpAar Condition="'$(FreeRdpAar)' == ''">$(MSBuildThisFileDirectory)..\..\artifacts\freerdp-android\freeRDPCore-release.aar</FreeRdpAar>
   </PropertyGroup>

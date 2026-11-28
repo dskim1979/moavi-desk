@@ -234,6 +234,7 @@ Open-source notices: LICENSE.md and 3rd-party-licenses.md in the install folder.
   <data name="VncKeyboard"><value>Keyboard</value></data>
   <data name="VncClose"><value>Close</value></data>
   <data name="RdpDevHome"><value>Home folder</value></data>
+  <data name="RdpDevNextTime"><value>To change them, set them in the list's panel and connect again</value></data>
   <data name="RdpDevPrinterList"><value>Printers</value></data>
   <data name="RdpDevClipboardItem"><value>Clipboard</value></data>
   <data name="RdpDevPolicy"><value>Greyed out: not allowed by the pool</value></data>

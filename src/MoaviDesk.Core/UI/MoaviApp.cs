@@ -27,7 +27,7 @@ internal static class MoaviApp
 
     /// <summary>Windows and macOS: one window per page, the app ends with the last one.
     /// The builder comes from the app (UsePlatformDetect is Avalonia.Desktop's).</summary>
-    public static int RunDesktop(AppBuilder builder, string[] args, AppConfig config)
+    public static int RunDesktop(AppBuilder builder, string[] args, AppConfig config, Action? start = null)
     {
         var lifetime = new ClassicDesktopStyleApplicationLifetime
         {
@@ -37,6 +37,11 @@ internal static class MoaviApp
         builder.WithMoaviLook().SetupWithLifetime(lifetime);
         ApplyTheme(builder.Instance!);
 
+        if (start is not null)
+        {
+            lifetime.Startup += (_, _) => start();
+            return lifetime.Start(args);
+        }
 #if DEBUG
         if (!Snapshot.TryStart(config, lifetime))
 #endif

@@ -40,6 +40,19 @@ internal sealed class AndroidRdp(AppConfig config) : IRdpClient
                                                 .Select(o => $"{Uri.EscapeDataString(o.Name)}={Uri.EscapeDataString(o.Value)}"));
             var intent = new Intent(activity, Java.Lang.Class.ForName(SessionActivity));
             intent.SetData(Android.Net.Uri.Parse($"freerdp://{address}/connect?{query}"));
+            // MOAVI Desk's bar on the session screen (installer/android/moavi/MoaviBar.java)
+            var s = Viewer.ParseRdp(rdp);
+            bool On(string key, bool fallback = false) => s.TryGetValue(key, out var v) ? v.Trim() == "1" : fallback;
+            string State(bool on, bool allowedHere) => L(on && allowedHere ? "RdpDevOn" : "RdpDevOff");
+            var drives = (s.TryGetValue("drivestoredirect", out var d) && d.Trim().Length > 0) || On("redirectdrives");
+            intent.PutExtra("moavi.title", title);
+            intent.PutExtra("moavi.labels", new[] { L("RdpDevices"), L("VncKeyboard"), "한/영", L("RdpCtrlAltDel"), L("RdpDisconnect") });
+            intent.PutExtra("moavi.devices", new[]
+            {
+                $"{L("RdpDevDrives")}: {State(drives, allowed.Drives)}",
+                string.Format(L("RdpDevClipboard"), State(On("redirectclipboard", true), allowed.Clipboard)),
+                L("RdpDevNextTime"),
+            });
             var session = new Session();
             AndroidHost.Waiting.Enqueue(session);
             activity.StartActivity(intent);

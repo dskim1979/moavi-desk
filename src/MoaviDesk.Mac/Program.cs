@@ -20,9 +20,17 @@ internal sealed class Program
         // MOAVI Desk's own RDP window (libmoavi-rdp), else FreeRDP's window
         Platform.Rdp = MacRdp.Available() ? new MacRdp(config)
                      : FreeRdpClient.Find() is { } freerdp ? new FreeRdpClient(freerdp, config) : null;
+        Action? start = null;
+#if MOAVI_TEST
+        if (Environment.GetEnvironmentVariable("MOAVI_TEST_RDP") is { Length: > 0 } spec && Platform.Rdp is { } rdp)
+        {
+            var (file, password) = TestRdp.Of(spec);
+            start = () => _ = rdp.OpenAsync(file, "RDP check", false, password, new DevicePolicy(true, true, true));
+        }
+#endif
         return MoaviApp.RunDesktop(AppBuilder.Configure<Application>()
                                              .UsePlatformDetect()
                                              .With(new MacOSPlatformOptions { ShowInDock = true }),
-                                   args, config);
+                                   args, config, start);
     }
 }

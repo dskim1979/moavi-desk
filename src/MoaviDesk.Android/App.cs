@@ -38,6 +38,19 @@ public sealed class App : Application
             Page.Stack = stack;
             single.MainView = stack;
             LoginWindow.Create(config).Show();
+#if MOAVI_TEST
+            // adb shell am start -n com.makussystems.moavidesk/com.makussystems.moavidesk.MainActivity --es moavi.test.rdp "host:port|user|password"
+            Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
+            {
+                await Task.Delay(3000);
+                if (AndroidHost.Main?.Intent?.GetStringExtra("moavi.test.rdp") is { Length: > 0 } spec && Platform.Rdp is { } rdp)
+                {
+                    var (file, password) = TestRdp.Of(spec);
+                    var (error, _) = await rdp.OpenAsync(file, "RDP check", false, password, new DevicePolicy(true, true, true));
+                    Android.Util.Log.Info("MoaviDesk", $"RDP check open: {(error.Length == 0 ? "ok" : error)}");
+                }
+            });
+#endif
         }
         base.OnFrameworkInitializationCompleted();
     }
@@ -57,7 +70,7 @@ public sealed class AndroidApp : AvaloniaAndroidApplication<App>
     protected override AppBuilder CustomizeAppBuilder(AppBuilder builder) => base.CustomizeAppBuilder(builder).WithMoaviLook();
 }
 
-[Activity(Label = "MOAVI Desk", Theme = "@style/Theme.AppCompat.Light.NoActionBar", Icon = "@drawable/icon", MainLauncher = true,
+[Activity(Name = "com.makussystems.moavidesk.MainActivity", Label = "MOAVI Desk", Theme = "@style/Theme.AppCompat.Light.NoActionBar", Icon = "@drawable/icon", MainLauncher = true,
           WindowSoftInputMode = Android.Views.SoftInput.AdjustResize,
           ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.UiMode | ConfigChanges.ScreenLayout
                                  | ConfigChanges.SmallestScreenSize | ConfigChanges.KeyboardHidden | ConfigChanges.Density)]
