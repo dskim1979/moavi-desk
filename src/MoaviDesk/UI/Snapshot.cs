@@ -56,7 +56,7 @@ internal static class Snapshot
                     Id = "a", Name = "업무용PC-34", Pool = "일반 업무", State = "running", Os = "Windows 11", Protocols = ["rdp", "spice"], Spec = new() { Cpu = 4, MemoryGb = 8 },
                     SignedIn = [new() { User = "ohjihoon", LoginTime = DateTimeOffset.Now.AddHours(-2).ToUnixTimeSeconds() }],
                     LastConnected = DateTimeOffset.Now.AddHours(-2).ToString("o"),
-                    Policy = new() { Clipboard = "both" },
+                    Policy = new() { Clipboard = "both", ScreenThumbnail = true, DesktopSso = true, UsbRedirect = true, ClientDrives = true, ClientPrinters = false },
                     Storage = new()
                     {
                         Kind = "smb",
