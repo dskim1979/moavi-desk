@@ -43,7 +43,7 @@ internal sealed class AndroidRdp(AppConfig config) : IRdpClient
             // text is not tiny on a high-resolution tablet
             var m = activity.Resources!.DisplayMetrics!;
             var scale = Math.Clamp((int)Math.Round(m.Density * 100 / 25.0) * 25, 100, 300);
-            options.Add(("size", $"{m.WidthPixels & ~1}x{m.HeightPixels}"));
+            options.Add(("size", $"{m.WidthPixels & ~1}x{m.HeightPixels - (int)(56 * m.Density)}"));   // less the bar
             options.Add(("scale-desktop", scale.ToString(System.Globalization.CultureInfo.InvariantCulture)));
             var address = options.First(o => o.Name == "v").Value;
             var query = string.Join('&', options.Where(o => o.Name != "v")
