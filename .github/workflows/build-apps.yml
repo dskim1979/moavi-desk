@@ -115,7 +115,9 @@ jobs:
 
       - name: Build FreeRDP
         if: steps.freerdp.outputs.cache-hit != 'true'
-        run: ./installer/android/build-freerdp.sh
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q nasm   # OpenH264's x86_64 assembly
+          ./installer/android/build-freerdp.sh
 
       - name: Save FreeRDP
         if: steps.freerdp.outputs.cache-hit != 'true'

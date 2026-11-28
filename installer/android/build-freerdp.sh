@@ -19,12 +19,12 @@ if [ ! -d "$SRC/.git" ]; then
 fi
 STUDIO="$SRC/client/Android/Studio"
 
-# phones and tablets (arm64) and the emulator (x86_64); OpenSSL and cJSON only (FreeRDP's own qa set: no H.264 decoder yet)
+# phones and tablets (arm64) and the emulator (x86_64); OpenSSL, cJSON, OpenH264 (H.264 / AVC, built from source) and Opus
 cat > "$STUDIO/release.properties" <<'PROPS'
 ABI_FILTERS=arm64-v8a;x86_64
 SPLIT_ARCHITECTURES=arm64-v8a;x86_64
 SPLIT_ENABLED=false
-CMAKE_ARGUMENTS=-DWITH_FFMPEG=OFF;-DWITH_OPENH264=OFF;-DWITH_OPUS=OFF;-DWITH_WEBP=OFF;-DWITH_JPEG=OFF;-DWITH_PNG=OFF;-DWITH_CJSON=ON;-DWITH_OPENSSL=ON
+CMAKE_ARGUMENTS=-DWITH_FFMPEG=OFF;-DWITH_OPENH264=ON;-DWITH_OPUS=ON;-DWITH_WEBP=OFF;-DWITH_JPEG=OFF;-DWITH_PNG=OFF;-DWITH_CJSON=ON;-DWITH_OPENSSL=ON
 PROPS
 
 # what its build.gradle asks for (API 37 and its build tools come from the SDK's beta channel for now)
