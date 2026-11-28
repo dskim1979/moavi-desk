@@ -49,7 +49,7 @@ internal class AppConfig
     /// <summary>The MOAVI Desk server, e.g. <c>https://desk.example.com</c> (set in Settings).</summary>
     public string ServerUrl { get; set; } = string.Empty;
 
-    /// <summary>Skip TLS certificate checks against <see cref="ServerUrl"/> (test servers only).</summary>
+    /// <summary>Skip TLS certificate checks against <see cref="ServerUrl"/>.</summary>
     public bool IgnoreCertificateErrors { get; set; } = false;
 
     /// <summary>
