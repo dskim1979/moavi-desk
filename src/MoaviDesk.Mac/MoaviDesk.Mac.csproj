@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- MOAVI Desk for macOS: the shared pages (MoaviDesk.Core) in Avalonia windows, RDP through the FreeRDP
+       client bundled in the app (FreeRdpClient.cs). installer/macos/build.sh makes MOAVI Desk.app and the .dmg. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>moavi-desk</AssemblyName>
+    <RootNamespace>MoaviDesk</RootNamespace>
+    <Product>MOAVI Desk</Product>
+    <AssemblyTitle>MOAVI Desk Client</AssemblyTitle>
+    <Description>MOAVI Desk macOS client - your desktops over RDP, SPICE and VNC</Description>
+    <IsPackable>false</IsPackable>
+    <UseAppHost>true</UseAppHost>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifiers>osx-arm64;osx-x64</RuntimeIdentifiers>
+    <!-- MacRdp: function pointers for libmoavi-rdp's callbacks -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- -p:MoaviTest=true: the CI's RDP check (MOAVI_TEST_RDP opens the RDP window at start) -->
+    <DefineConstants Condition="'$(MoaviTest)' == 'true'">$(DefineConstants);MOAVI_TEST</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MoaviDesk.Core\MoaviDesk.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
+  </ItemGroup>
+</Project>

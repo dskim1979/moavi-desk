@@ -9,7 +9,7 @@
     <RootNamespace>MoaviDesk</RootNamespace>
     <Product>MOAVI Desk</Product>
     <AssemblyTitle>MOAVI Desk Client</AssemblyTitle>
-    <Description>MOAVI Desk Windows client - your desktops over SPICE and VNC</Description>
+    <Description>MOAVI Desk Windows client - your desktops over RDP, SPICE and VNC</Description>
     <IsPackable>false</IsPackable>
 
     <PublishSingleFile>true</PublishSingleFile>
@@ -28,13 +28,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="moavi.ico" Link="icon.ico" />
-    <!-- the built-in backgrounds (Unsplash licence photos + MOAVI's own; 3rd-party-licenses.md) and their thumbnails -->
-    <AvaloniaResource Include="Backgrounds\**\*.jpg" />
-    <!-- Paperlogy (SIL OFL, Fonts/OFL.txt), the console's typeface: the app's default font -->
-    <AvaloniaResource Include="Fonts\*.ttf" />
     <!-- the RDP window (WinForms) loads two weights from the exe itself: the MSI ships only moavi-desk.exe -->
-    <EmbeddedResource Include="Fonts\Paperlogy-4Regular.ttf;Fonts\Paperlogy-7Bold.ttf" LogicalName="%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\MoaviDesk.Core\Fonts\Paperlogy-4Regular.ttf;..\MoaviDesk.Core\Fonts\Paperlogy-7Bold.ttf" LogicalName="%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- sign-in, the desktop list, settings, the engine API: shared with macOS and Android -->
+    <ProjectReference Include="..\MoaviDesk.Core\MoaviDesk.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

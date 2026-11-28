@@ -16,9 +16,9 @@ internal static class SettingsWindow
 {
     private static readonly string[] Protocols = ["auto", "rdp", "spice", "vnc"];
 
-    public static Window Create(AppConfig config)
+    public static Page Create(AppConfig config)
     {
-        var window = new Window
+        var window = new Page
         {
             Title = $"{Product} · {L("Settings")}",
             Width = 760,

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>MOAVI Desk</string>
+  <key>CFBundleDisplayName</key><string>MOAVI Desk</string>
+  <key>CFBundleIdentifier</key><string>com.makussystems.moavidesk</string>
+  <key>CFBundleExecutable</key><string>moavi-desk</string>
+  <key>CFBundleIconFile</key><string>moavi.icns</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>@VERSION@</string>
+  <key>CFBundleVersion</key><string>@VERSION@</string>
+  <key>CFBundleDevelopmentRegion</key><string>ko</string>
+  <key>LSMinimumSystemVersion</key><string>12.0</string>
+  <key>LSApplicationCategoryType</key><string>public.app-category.business</string>
+  <key>NSHighResolutionCapable</key><true/>
+  <key>NSHumanReadableCopyright</key><string>(주)매커스시스템즈</string>
+  <!-- the RDP window (FreeRDP) passes the microphone to the desktop when 설정 → RDP allows it -->
+  <key>NSMicrophoneUsageDescription</key><string>원격 데스크톱에 마이크를 연결합니다.</string>
+</dict>
+</plist>

@@ -1,3 +1,6 @@
 <Solution>
+  <Project Path="src/MoaviDesk.Core/MoaviDesk.Core.csproj" />
   <Project Path="src/MoaviDesk/MoaviDesk.csproj" />
+  <Project Path="src/MoaviDesk.Mac/MoaviDesk.Mac.csproj" />
+  <Project Path="src/MoaviDesk.Android/MoaviDesk.Android.csproj" />
 </Solution>

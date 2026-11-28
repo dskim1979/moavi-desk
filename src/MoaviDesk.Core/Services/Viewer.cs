@@ -16,42 +16,56 @@ namespace MoaviDesk.Services;
 /// SPICE: the engine hands a .vv file (through the node's spiceproxy) → write it, launch it.
 /// VNC: the engine hands a console websocket path → bridge it to a local TCP port and point
 /// remote-viewer at that port with a vnc .vv file. The bridge lives until the viewer exits.
-/// RDP: the engine hands an .rdp file → MOAVI Desk's own window with Windows' Remote Desktop control
-/// (RdpWindow; mstsc's engine, so UDP and H.264/AVC when the desktop offers them) - always, also
-/// through the bundled RD Gateway; Windows' Remote Desktop app is not started.
+/// RDP: the engine hands an .rdp file → the platform's RDP client (Platform.Rdp): on Windows MOAVI Desk's
+/// own window with Windows' Remote Desktop control (mstsc's engine, so UDP and H.264/AVC when the desktop
+/// offers them), on macOS and Android FreeRDP - also through the bundled RD Gateway and Warpgate.
 /// </summary>
 internal static class Viewer
 {
     /// <summary>The order the client offers: RDP (lightest on a WAN for office work), SPICE (USB,
-    /// audio), VNC. RDP needs Windows' mstsc, so another OS starts with SPICE.</summary>
+    /// audio), VNC - as far as this platform has them (Platform).</summary>
     public static readonly string[] Order = ["rdp", "spice", "vnc"];
 
     public static List<string> Offered(IEnumerable<string> fromEngine)
     {
         var have = fromEngine.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return Order.Where(p => have.Contains(p) && (p != "rdp" || OperatingSystem.IsWindows())).ToList();
+        return Order.Where(p => have.Contains(p) && p switch
+        {
+            "rdp" => Platform.Rdp is not null,
+            "spice" => Platform.RemoteViewer || Platform.OpenSpice is not null,
+            _ => Platform.RemoteViewer || Platform.InAppVnc
+        }).ToList();
     }
 
-    public static async Task<(string Error, Process? Process)> OpenAsync(DeskApi api, ConnectInfo c,
-                                                                       string viewerPath, string title, bool fullScreen,
-                                                                       MoaviDesk.Config.DeviceChoice? devices = null,
-                                                                       RdpLauncher.Pending? early = null)
+    public static async Task<(string Error, RemoteSession? Session)> OpenAsync(DeskApi api, ConnectInfo c,
+                                                                              string viewerPath, string title, bool fullScreen,
+                                                                              MoaviDesk.Config.DeviceChoice? devices = null,
+                                                                              IEarlyRdp? early = null)
     {
         if (early is not null && (c.Type != "rdp" || string.IsNullOrEmpty(c.Rdp))) { early.Cancel(); early = null; }
         if (c.Type == "rdp")
         {
-            if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(c.Rdp)) { return (L("RdpNeedsWindows"), null); }
+            if (Platform.Rdp is not { } rdp || string.IsNullOrEmpty(c.Rdp)) { return (L("RdpNeedsWindows"), null); }
             if (!fullScreen) { c.Rdp = c.Rdp.Replace("screen mode id:i:2", "screen mode id:i:1", StringComparison.Ordinal); }
+            var allowed = DevicePolicy.Of(c.Rdp);
             if (devices is not null) { c.Rdp = WithDevices(c.Rdp, devices); }
             if (early is not null)
             {
-                try { early.Deliver(c.Rdp, SignInPassword(api, c)); return (string.Empty, early.Process); }
+                try { early.Deliver(c.Rdp, SignInPassword(api, c)); return (string.Empty, early.Session); }
                 catch { early.Cancel(); }
             }
-            var (embedded, error, process) = RdpLauncher.Open(c.Rdp, title, fullScreen, SignInPassword(api, c));
-            return embedded ? (error, process) : OpenRdp(c.Rdp, fullScreen);
+            return await rdp.OpenAsync(c.Rdp, title, fullScreen, SignInPassword(api, c), allowed);
         }
 
+        if (c.Type == "spice" && !Platform.RemoteViewer && Platform.OpenSpice is { } openSpice)
+        {
+            return await openSpice(AddFullScreen(c.Vv ?? "", fullScreen));
+        }
+        if (c.Type == "vnc" && c.WsPath is { Length: > 0 } && Platform.InAppVnc)
+        {
+            return await MoaviDesk.UI.VncPage.OpenAsync(api, c, title);
+        }
+        if (!Platform.RemoteViewer) { return (L("ViewerLaunchFailed"), null); }
         var viewer = string.IsNullOrWhiteSpace(viewerPath) ? null : RemoteViewer.Resolve(viewerPath);
         if (viewer is null) { return (L("ViewerPathNotSet"), null); }
 
@@ -59,7 +73,7 @@ internal static class Viewer
         {
             var vv = WriteTemp(AddFullScreen(c.Vv ?? "", fullScreen));
             var (p, err) = RemoteViewer.Launch(viewer, vv);
-            return p is null ? (err ?? L("ViewerLaunchFailed"), null) : (string.Empty, p);
+            return p is null ? (err ?? L("ViewerLaunchFailed"), null) : (string.Empty, RemoteSession.Of(p));
         }
 
         if (c.Type == "vnc" && c.WsPath is { Length: > 0 })
@@ -72,9 +86,9 @@ internal static class Viewer
                 await bridge.DisposeAsync();
                 return (err ?? L("ViewerLaunchFailed"), null);
             }
-            p.EnableRaisingEvents = true;
-            p.Exited += async (_, _) => { try { await bridge.DisposeAsync(); } catch { } };
-            return (string.Empty, p);
+            var session = RemoteSession.Of(p);
+            session.Exited += async (_, _) => { try { await bridge.DisposeAsync(); } catch { } };
+            return (string.Empty, session);
         }
 
         return (L("ViewerLaunchFailed"), null);
@@ -87,7 +101,12 @@ internal static class Viewer
     public static string FindViewer(string configured)
     {
         if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured)) { return configured; }
-        if (!OperatingSystem.IsWindows()) { return string.IsNullOrWhiteSpace(configured) ? "remote-viewer" : configured; }
+        if (!OperatingSystem.IsWindows())
+        {
+            if (!string.IsNullOrWhiteSpace(configured)) { return configured; }
+            // macOS: an app started from the Finder has no Homebrew in its PATH (brew install virt-viewer)
+            return new[] { "/opt/homebrew/bin/remote-viewer", "/usr/local/bin/remote-viewer" }.FirstOrDefault(File.Exists) ?? "remote-viewer";
+        }
 
         var here = AppContext.BaseDirectory;
         string[] candidates =
@@ -112,30 +131,25 @@ internal static class Viewer
     private static string? SignInPassword(DeskApi api, ConnectInfo c)
     {
         if (c.Via == "warpgate" || string.IsNullOrEmpty(api.SignInPassword)) { return null; }
-        var user = RdpWindow.Parse(c.Rdp ?? "").GetValueOrDefault("username", "");
+        var user = ParseRdp(c.Rdp ?? "").GetValueOrDefault("username", "");
         var account = user.Contains('\\') ? user[(user.LastIndexOf('\\') + 1)..] : user.Split('@')[0];
         return account.Length > 0 && string.Equals(account, api.Username, StringComparison.OrdinalIgnoreCase)
             ? api.SignInPassword
             : null;
     }
 
-    private static (string Error, Process? Process) OpenRdp(string rdp, bool fullScreen)
+    /// <summary>The .rdp lines as key → value ("full address:s:host:port" → "full address" → "host:port").</summary>
+    public static Dictionary<string, string> ParseRdp(string rdp)
     {
-        var file = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"moavi-{Guid.NewGuid():N}.rdp");
-        File.WriteAllText(file, rdp);
-        try
+        var d = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var raw in rdp.Split('\n'))
         {
-            var mstsc = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "mstsc.exe");
-            var p = Process.Start(new ProcessStartInfo(File.Exists(mstsc) ? mstsc : "mstsc.exe", $"\"{file}\"") { UseShellExecute = false });
-            // mstsc reads the file when it starts; it holds the username and address, so it does not stay behind
-            _ = Task.Delay(TimeSpan.FromSeconds(30)).ContinueWith(_ => { try { File.Delete(file); } catch { } });
-            return p is null ? (L("ViewerLaunchFailed"), null) : (string.Empty, p);
+            var line = raw.Trim();
+            var a = line.IndexOf(':');
+            if (a <= 0 || a + 2 >= line.Length || line[a + 2] != ':') { continue; }
+            d[line[..a]] = line[(a + 3)..];
         }
-        catch (Exception ex)
-        {
-            try { File.Delete(file); } catch { }
-            return (ex.Message, null);
-        }
+        return d;
     }
 
     /// <summary>The .rdp without the devices the user left out (it can only take away: what the pool does

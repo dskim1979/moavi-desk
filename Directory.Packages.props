@@ -3,9 +3,19 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="Avalonia" Version="12.0.3" />
     <PackageVersion Include="Avalonia.Desktop" Version="12.0.3" />
+    <PackageVersion Include="Avalonia.Android" Version="12.0.3" />
     <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.0.3" />
+    <!-- Android: what FreeRDP's session screen (freeRDPCore) needs, the versions of its build.gradle -->
+    <PackageVersion Include="Xamarin.AndroidX.Preference" Version="1.2.1.18" />
+    <PackageVersion Include="Xamarin.AndroidX.RecyclerView" Version="1.4.0.6" />
+    <PackageVersion Include="Xamarin.AndroidX.Lifecycle.ViewModel" Version="2.11.0.1" />
+    <PackageVersion Include="Xamarin.AndroidX.Lifecycle.LiveData" Version="2.11.0.1" />
+    <PackageVersion Include="Xamarin.AndroidX.Room.Runtime" Version="2.8.4.3" />
+    <PackageVersion Include="Xamarin.AndroidX.Sqlite" Version="2.7.0" />
     <PackageVersion Include="YamlDotNet" Version="17.1.0" />
     <PackageVersion Include="System.ServiceProcess.ServiceController" Version="10.0.0" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
   </ItemGroup>
 </Project>

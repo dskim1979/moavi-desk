@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the .vv handed to a SPICE app (SpiceHandoff) -->
+<paths>
+  <cache-path name="vv" path="vv/" />
+</paths>

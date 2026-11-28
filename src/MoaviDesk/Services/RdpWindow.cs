@@ -56,18 +56,7 @@ internal static class RdpWindow
     }
 
     /// <summary>The .rdp lines as key → value ("full address:s:host:port" → "full address" → "host:port").</summary>
-    public static Dictionary<string, string> Parse(string rdp)
-    {
-        var d = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var raw in rdp.Split('\n'))
-        {
-            var line = raw.Trim();
-            var a = line.IndexOf(':');
-            if (a <= 0 || a + 2 >= line.Length || line[a + 2] != ':') { continue; }
-            d[line[..a]] = line[(a + 3)..];
-        }
-        return d;
-    }
+    public static Dictionary<string, string> Parse(string rdp) => Viewer.ParseRdp(rdp);
 
     /// <summary>Every connection opens in MOAVI Desk's own window - Windows' Remote Desktop app is never
     /// started. The bundled RD Gateway's access token goes into the control as its pre-authentication
@@ -556,9 +545,10 @@ internal static class RdpWindow
 internal static class RdpLauncher
 {
     /// <summary>A window opened before the engine answered: Deliver hands it the .rdp, Cancel closes it.</summary>
-    internal sealed class Pending(Process process, string path)
+    internal sealed class Pending(Process process, string path) : IEarlyRdp
     {
         public Process Process { get; } = process;
+        public RemoteSession Session { get; } = RemoteSession.Of(process);
 
         public void Deliver(string rdp, string? password)
         {
@@ -613,6 +603,38 @@ internal static class RdpLauncher
         {
             try { File.Delete(file); } catch { }
             return (true, ex.Message, null);
+        }
+    }
+}
+
+/// <summary>Windows: the Remote Desktop control in MOAVI Desk's own window (RdpWindow, a process per desktop).</summary>
+internal sealed class WindowsRdp : IRdpClient
+{
+    public IEarlyRdp? Start(string title, bool fullScreen) => RdpLauncher.Start(title, fullScreen);
+
+    public Task<(string Error, RemoteSession? Session)> OpenAsync(string rdp, string title, bool fullScreen, string? password, DevicePolicy allowed)
+    {
+        var (embedded, error, process) = RdpLauncher.Open(rdp, title, fullScreen, password);
+        if (!embedded) { (error, process) = OpenMstsc(rdp); }
+        return Task.FromResult((error, process is null ? null : RemoteSession.Of(process)));
+    }
+
+    private static (string Error, Process? Process) OpenMstsc(string rdp)
+    {
+        var file = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"moavi-{Guid.NewGuid():N}.rdp");
+        File.WriteAllText(file, rdp);
+        try
+        {
+            var mstsc = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "mstsc.exe");
+            var p = Process.Start(new ProcessStartInfo(File.Exists(mstsc) ? mstsc : "mstsc.exe", $"\"{file}\"") { UseShellExecute = false });
+            // mstsc reads the file when it starts; it holds the username and address, so it does not stay behind
+            _ = Task.Delay(TimeSpan.FromSeconds(30)).ContinueWith(_ => { try { File.Delete(file); } catch { } });
+            return p is null ? (L("ViewerLaunchFailed"), null) : (string.Empty, p);
+        }
+        catch (Exception ex)
+        {
+            try { File.Delete(file); } catch { }
+            return (ex.Message, null);
         }
     }
 }

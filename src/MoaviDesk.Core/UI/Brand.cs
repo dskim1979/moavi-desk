@@ -48,7 +48,7 @@ internal static class Brand
     }
 
     public static Avalonia.Media.Imaging.Bitmap BuiltinBitmap(string key, bool thumb = false)
-        => new(Avalonia.Platform.AssetLoader.Open(new Uri($"avares://moavi-desk/Backgrounds/{(thumb ? "thumbs/" : "")}{key}.jpg")));
+        => new(Avalonia.Platform.AssetLoader.Open(new Uri($"avares://MoaviDesk.Core/Backgrounds/{(thumb ? "thumbs/" : "")}{key}.jpg")));
 
     /// <summary>The picture behind the windows (설정 › 일반 › 배경): a built-in one or the user's own file.</summary>
     public static IBrush Backdrop(Config.AppConfig config)
@@ -68,7 +68,7 @@ internal static class Brand
 
     public static WindowIcon AppIcon()
     {
-        using var stream = Avalonia.Platform.AssetLoader.Open(new Uri("avares://moavi-desk/icon.ico"));
+        using var stream = Avalonia.Platform.AssetLoader.Open(new Uri("avares://MoaviDesk.Core/icon.ico"));
         return new WindowIcon(stream);
     }
 
@@ -154,7 +154,7 @@ internal static class Brand
 
     public static void OpenUrl(string url)
     {
-        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+        try { MoaviDesk.Services.Platform.OpenUrl(url); }
         catch { /* no browser */ }
     }
 }

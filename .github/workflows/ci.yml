@@ -6,12 +6,18 @@ on:
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      only:
+        description: 'One platform only (windows, macos, android); empty = all'
+        required: false
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
   build:
+    if: ${{ !inputs.only || inputs.only == 'windows' }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,3 +45,11 @@ jobs:
           name: moavi-desk-msi
           path: artifacts/msi/*.msi
           if-no-files-found: error
+
+  # macOS (.dmg) and Android (APK): build-apps.yml, shared with the release
+  apps:
+    if: ${{ !inputs.only || inputs.only != 'windows' }}
+    uses: ./.github/workflows/build-apps.yml
+    with:
+      only: ${{ inputs.only }}
+    secrets: inherit

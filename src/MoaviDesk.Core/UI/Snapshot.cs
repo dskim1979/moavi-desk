@@ -33,13 +33,13 @@ internal static class Snapshot
             settings.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             settings.Show();
             await Task.Delay(500);
-            settings.GetLogicalDescendants().OfType<Button>().First(b => b.Name == "TestConnection")
+            settings.Window!.GetLogicalDescendants().OfType<Button>().First(b => b.Name == "TestConnection")
                     .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Delay(7000);
             Save(settings, System.IO.Path.Combine(dir, "settings.png"));
             foreach (var (n, file) in new[] { (1, "settings-general.png"), (2, "settings-rdp.png") })
             {
-                settings.GetLogicalDescendants().OfType<Button>().First(b => b.Name == $"Section{n}")
+                settings.Window!.GetLogicalDescendants().OfType<Button>().First(b => b.Name == $"Section{n}")
                         .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await Task.Delay(600);
                 Save(settings, System.IO.Path.Combine(dir, file));
@@ -74,7 +74,7 @@ internal static class Snapshot
             ];
             // a picture stands in for the Windows desktop's screen
             byte[] sample;
-            using (var s = Avalonia.Platform.AssetLoader.Open(new Uri("avares://moavi-desk/Backgrounds/thumbs/2.jpg")))
+            using (var s = Avalonia.Platform.AssetLoader.Open(new Uri("avares://MoaviDesk.Core/Backgrounds/thumbs/2.jpg")))
             using (var ms = new MemoryStream()) { s.CopyTo(ms); sample = ms.ToArray(); }
             api.SnapshotShot = id => id == "a" ? sample : null;
             api.SnapshotLeases = [new() { Kind = "usb", Name = "Xilinx JTAG 케이블", EndsAt = DateTimeOffset.Now.AddHours(5).ToString("o"), Desktop = "업무용PC-34" }];
@@ -84,14 +84,32 @@ internal static class Snapshot
             main.Show();
             await Task.Delay(1500);
             Save(main, System.IO.Path.Combine(dir, "main.png"));
+            // a tablet across and upright (Android)
+            main.Window!.MinWidth = 0;
+            foreach (var (w, h, file) in new[] { (1280, 800, "main-tablet-landscape.png"), (800, 1280, "main-tablet-portrait.png") })
+            {
+                main.Window.Width = w;
+                main.Window.Height = h;
+                await Task.Delay(1000);
+                Save(main, System.IO.Path.Combine(dir, file));
+            }
+            // a phone's width (Android)
+            main.Window.Width = 400;
+            main.Window.Height = 820;
+            await Task.Delay(1000);
+            Save(main, System.IO.Path.Combine(dir, "main-phone.png"));
+            main.Window.GetLogicalDescendants().OfType<DockPanel>().First(p => p.Name == "DetailSheet").IsVisible = true;
+            await Task.Delay(600);
+            Save(main, System.IO.Path.Combine(dir, "main-phone-detail.png"));
             lifetime.Shutdown();
         };
-        lifetime.MainWindow = login;
+        lifetime.MainWindow = login.Window;
         return true;
     }
 
-    private static void Save(Window w, string path)
+    private static void Save(Page p, string path)
     {
+        var w = p.Window!;
         var size = new PixelSize((int)w.Bounds.Width, (int)w.Bounds.Height);
         using var bmp = new RenderTargetBitmap(size, new Vector(96, 96));
         bmp.Render(w);

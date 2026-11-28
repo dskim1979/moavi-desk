@@ -1,0 +1,180 @@
+name: RDP check
+
+# MOAVI Desk's RDP parts against a real RDP server (xrdp in a container), where no Mac or phone is at hand:
+# - libmoavi-rdp (the macOS window's FreeRDP layer) built on Linux with the same FreeRDP: connect, frames,
+#   input, a drive added and taken away, the clipboard, the window size, disconnect (rdp_check.c)
+# - the macOS app's RDP window (MacRdp, Avalonia) on Linux under Xvfb: connects and draws (screenshot)
+# - the Android APK on the emulator: AndroidRdp sets FreeRDP up and its session screen connects (screenshot)
+on:
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FREERDP_VERSION: 3.33.1
+  RDP_IMAGE: lscr.io/linuxserver/rdesktop:ubuntu-xfce
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: RDP test server
+        run: docker run -d --name xrdp -p 3389:3389 -e PUID=1000 -e PGID=1000 --shm-size=1gb "$RDP_IMAGE"
+
+      - name: FreeRDP cache
+        id: freerdp
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/freerdp-linux
+          key: freerdp-linux-${{ env.FREERDP_VERSION }}-v1
+
+      - name: Build FreeRDP
+        if: steps.freerdp.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q ninja-build libssl-dev zlib1g-dev libcjson-dev liburiparser-dev libicu-dev pkg-config
+          git clone --depth 1 -b "$FREERDP_VERSION" https://github.com/FreeRDP/FreeRDP.git artifacts/freerdp-src
+          cmake -GNinja -B artifacts/freerdp-build -S artifacts/freerdp-src -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$PWD/artifacts/freerdp-linux" -DCMAKE_INSTALL_LIBDIR=lib \
+            -DWITH_X11=OFF -DWITH_WAYLAND=OFF -DWITH_CLIENT_SDL=OFF -DWITH_SERVER=OFF -DWITH_SAMPLE=OFF \
+            -DWITH_PROXY=OFF -DWITH_SHADOW=OFF -DWITH_PLATFORM_SERVER=OFF -DWITH_FFMPEG=OFF -DWITH_DSP_FFMPEG=OFF \
+            -DWITH_SWSCALE=OFF -DWITH_CAIRO=OFF -DWITH_OPENH264=OFF -DWITH_CUPS=OFF -DWITH_PULSE=OFF -DWITH_ALSA=OFF \
+            -DWITH_OSS=OFF -DWITH_FUSE=OFF -DWITH_KRB5=OFF -DWITH_PCSC=OFF -DWITH_MANPAGES=OFF -DWITH_WEBVIEW=OFF \
+            -DCHANNEL_URBDRC=OFF -DWITH_OPUS=OFF -DWITH_FAAD2=OFF -DWITH_FAAC=OFF -DWITH_SOXR=OFF -DBUILD_TESTING=OFF
+          cmake --build artifacts/freerdp-build
+          cmake --install artifacts/freerdp-build
+
+      - name: Save FreeRDP
+        if: steps.freerdp.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: artifacts/freerdp-linux
+          key: ${{ steps.freerdp.outputs.cache-primary-key }}
+
+      - name: libmoavi-rdp against xrdp
+        run: |
+          # what the cached FreeRDP links to
+          sudo apt-get update -q && sudo apt-get install -y -q libcjson-dev liburiparser-dev libssl-dev zlib1g-dev
+          P="$PWD/artifacts/freerdp-linux"
+          gcc -shared -fPIC -O2 -fvisibility=hidden -I"$P/include/freerdp3" -I"$P/include/winpr3" \
+            installer/macos/moavi-rdp/moavi_rdp.c -o artifacts/libmoavi-rdp.so \
+            -L"$P/lib" -lfreerdp3 -lfreerdp-client3 -lwinpr3 -Wl,-rpath,"$P/lib"
+          gcc -O2 installer/macos/moavi-rdp/rdp_check.c -o artifacts/rdp_check -Lartifacts -lmoavi-rdp \
+            -Wl,-rpath,"$PWD/artifacts" -lpthread
+          # the container's desktop takes a while to come up
+          for i in $(seq 1 30); do (echo > /dev/tcp/127.0.0.1/3389) 2>/dev/null && break; sleep 2; done
+          sleep 5
+          artifacts/rdp_check /v:127.0.0.1:3389 /u:abc /p:abc /cert:ignore /sec:tls +clipboard /network:auto \
+            /dynamic-resolution /size:1280x800
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: The macOS RDP window on Linux (Xvfb)
+        run: |
+          sudo apt-get install -y -q xvfb imagemagick
+          dotnet publish src/MoaviDesk.Mac/MoaviDesk.Mac.csproj -c Release -r linux-x64 --self-contained \
+            -p:MoaviTest=true -o artifacts/maccheck
+          cp artifacts/libmoavi-rdp.so artifacts/maccheck/
+          export MOAVI_TEST_RDP="127.0.0.1:3389|abc|abc"
+          xvfb-run -a -s "-screen 0 1440x900x24" bash -c '
+            artifacts/maccheck/moavi-desk > artifacts/maccheck.log 2>&1 &
+            sleep 30
+            import -window root artifacts/mac-rdp-window.png
+            kill %1 || true'
+          cat artifacts/maccheck.log
+          grep -q "rdp state 1" artifacts/maccheck.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rdp-check-linux
+          path: |
+            artifacts/mac-rdp-window.png
+            artifacts/maccheck.log
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: RDP test server
+        run: docker run -d --name xrdp -p 3389:3389 -e PUID=1000 -e PGID=1000 --shm-size=1gb "$RDP_IMAGE"
+
+      # the same FreeRDP .aar as build-apps.yml
+      - name: FreeRDP cache
+        id: freerdp
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/freerdp-android
+          key: freerdp-android-${{ env.FREERDP_VERSION }}-${{ hashFiles('installer/android/build-freerdp.sh', 'installer/android/moavi/**') }}
+
+      - name: Build FreeRDP
+        if: steps.freerdp.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q nasm
+          ./installer/android/build-freerdp.sh
+
+      - name: Save FreeRDP
+        if: steps.freerdp.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: artifacts/freerdp-android
+          key: ${{ steps.freerdp.outputs.cache-primary-key }}
+
+      - name: The check APK
+        run: |
+          dotnet workload install android
+          dotnet build src/MoaviDesk.Android/MoaviDesk.Android.csproj -t:InstallAndroidDependencies \
+            -p:AndroidSdkDirectory="$ANDROID_HOME" -p:AcceptAndroidSDKLicenses=True
+          dotnet publish src/MoaviDesk.Android/MoaviDesk.Android.csproj -c Release -f net10.0-android \
+            -p:AndroidSdkDirectory="$ANDROID_HOME" -p:MoaviTest=true -o artifacts/android-check
+          ls artifacts/android-check/*-Signed.apk
+
+      - name: KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: On the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: ./installer/android/check-on-emulator.sh "$(ls artifacts/android-check/*-Signed.apk | head -1)" artifacts/android-out
+
+      - name: On a tablet emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_tablet
+          disable-animations: true
+          script: ./installer/android/check-on-emulator.sh "$(ls artifacts/android-check/*-Signed.apk | head -1)" artifacts/android-out/tablet
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rdp-check-android
+          path: artifacts/android-out

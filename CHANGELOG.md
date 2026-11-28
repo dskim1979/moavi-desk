@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-11-29
+
+### 추가
+- **macOS 클라이언트**(`.dmg`, Apple Silicon·Intel): RDP는 MOAVI Desk 창 안에서 열리고(FreeRDP 3 포함), 위쪽 막대에 장치·한/영·Ctrl+Alt+Del·전체 화면·연결 끊기가 있습니다. 막대의 **장치**에서 드라이브(홈 폴더, USB 저장장치)·프린터·클립보드를 접속 중에 켜고 끕니다. ⌘는 Ctrl, 오른쪽 ⌘는 한/영. 비밀번호 기억은 키체인. SPICE/VNC는 `brew install virt-viewer` 뒤 사용.
+- **Android 클라이언트**(APK, Android 10 이상, 휴대폰·태블릿): RDP는 MOAVI Desk 막대가 있는 화면(FreeRDP 3, H.264)에서 열리고, 막대의 **장치**에서 휴대폰 저장소·클립보드를 접속 중에 켜고 끕니다. 원격 화면은 기기 화면 크기와 배율에 맞춥니다. VNC는 앱 안 뷰어, SPICE는 aSPICE 앱으로 엽니다. 비밀번호 기억은 Android Keystore.
+- 세 OS 모두 장치 연결 방식(RD Gateway 토큰)과 Warpgate 경유 접속을 지원합니다(시험 서버에서 실제 Windows 데스크톱으로 확인).
+- 휴대폰처럼 좁은 화면: 데스크톱을 누르면 세부 패널(정보·공유 폴더·장치 선택·시작/종료)이 목록 위에 열립니다.
+- GitHub 릴리스 하나에 Windows·macOS·Android 설치 파일과 OS별 설치 방법이 함께 올라갑니다.
+
+### 바뀜
+- 설정의 인증서 옵션 문구에서 "(테스트 서버 전용)"을 뺐습니다.
+
 ## [1.1.4] - 2026-11-28
 
 ### 바뀜

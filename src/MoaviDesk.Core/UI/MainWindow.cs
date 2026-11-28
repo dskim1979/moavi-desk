@@ -31,9 +31,9 @@ internal static class MainWindow
 
 
 
-    public static Window Create(AppConfig config, DeskApi api, ClientConfig? clientConfig, string? notice)
+    public static Page Create(AppConfig config, DeskApi api, ClientConfig? clientConfig, string? notice)
     {
-        var window = new Window
+        var window = new Page
         {
             Title = $"{Product} · {api.Username}",
             Width = 1320,
@@ -47,7 +47,7 @@ internal static class MainWindow
         };
         if (config.Kiosk && config.KioskForceFullScreen) { window.WindowState = WindowState.FullScreen; }
 
-        var open = new List<(Process Process, string SessionId)>();
+        var open = new List<(RemoteSession Session, string SessionId)>();
         var connectors = new Dictionary<string, Func<Task>>();
         var autoConnected = false;
         var signedOut = false;
@@ -98,6 +98,7 @@ internal static class MainWindow
         Notice(notice ?? updateText, notice is null ? Accent : Warn);
 
         // --- app bar -------------------------------------------------------------------------------
+        var hostText = new TextBlock { Text = api.BaseUri.Host, FontSize = 12, Foreground = B(Subtle), VerticalAlignment = VerticalAlignment.Center };
         var search = new TextBox
         {
             Watermark = L("SearchDesktops"),
@@ -167,7 +168,7 @@ internal static class MainWindow
                         {
                             Lockup(24, 15, Ink),
                             new Border { Width = 1, Height = 18, Background = B(Hair), VerticalAlignment = VerticalAlignment.Center },
-                            new TextBlock { Text = api.BaseUri.Host, FontSize = 12, Foreground = B(Subtle), VerticalAlignment = VerticalAlignment.Center }
+                            hostText
                         }
                     },
                     Col(new Border { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Child = search }, 1),
@@ -330,7 +331,36 @@ internal static class MainWindow
             Background = B(Panel),
             BorderBrush = B(Hair),
             BorderThickness = new Thickness(1, 0, 0, 0),
-            Child = new ScrollViewer { Content = new Border { Padding = new Thickness(18, 18, 16, 18), Child = detail } }
+        };
+        var detailScroll = new ScrollViewer { Content = new Border { Padding = new Thickness(18, 18, 16, 18), Child = detail } };
+        detailPane.Child = detailScroll;
+
+        // a phone (or a narrow window): the panel opens over the list when a desktop is tapped - its details,
+        // shared folders, the device choice and the actions - and 목록으로 (or the back button) goes back
+        var sheetBody = new Border();
+        var sheetBack = new Button
+        {
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(6, 6),
+            Content = UiHelper.WithText(AppIcons.Close, L("BackToList"), B(Ink))
+        };
+        var sheet = new DockPanel { Name = "DetailSheet", IsVisible = false, Background = B(Bg) };
+        sheet.Children.Add(Docked(new Border
+        {
+            BorderBrush = B(Hair),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(10, 6),
+            Child = sheetBack
+        }, Dock.Top));
+        sheet.Children.Add(sheetBody);
+        var narrowDetail = false;
+        sheetBack.Click += (_, _) => sheet.IsVisible = false;
+        window.OnBack = () =>
+        {
+            if (!sheet.IsVisible) { return false; }
+            sheet.IsVisible = false;
+            return true;
         };
 
         var body = new DockPanel();
@@ -342,7 +372,21 @@ internal static class MainWindow
         root.Children.Add(Docked(infoBar, Dock.Top));
         root.Children.Add(Docked(statusBar, Dock.Bottom));
         root.Children.Add(body);
-        window.Content = root;
+        window.Content = new Grid { Children = { root, sheet } };
+
+        // a phone (Android) or a narrow window: the desktops alone - no filter rail, no detail panel
+        root.SizeChanged += (_, e) =>
+        {
+            var narrow = e.NewSize.Width < 760;
+            rail.IsVisible = !narrow;
+            narrowDetail = e.NewSize.Width < 1000;
+            detailPane.IsVisible = !narrowDetail;
+            if (narrowDetail && detailScroll.Parent == detailPane) { detailPane.Child = null; sheetBody.Child = detailScroll; }
+            if (!narrowDetail && detailScroll.Parent == sheetBody) { sheetBody.Child = null; detailPane.Child = detailScroll; sheet.IsVisible = false; }
+            hostText.IsVisible = !narrow;
+            search.IsVisible = e.NewSize.Width >= 560;
+            search.Width = Math.Clamp(e.NewSize.Width - 340, 160, 320);
+        };
 
         // --- behaviour -----------------------------------------------------------------------------
         void Status()
@@ -748,7 +792,7 @@ internal static class MainWindow
                 if (!btnConnect.IsEnabled) { return; }
                 btnConnect.IsEnabled = false;
                 // RDP: the window opens now and loads while the engine prepares the desktop
-                var early = protocol == "rdp" ? RdpLauncher.Start(d.Name, config.ViewerFullScreen) : null;
+                var early = protocol == "rdp" ? Platform.Rdp?.Start(d.Name, config.ViewerFullScreen) : null;
                 try
                 {
                     ConnectInfo c;
@@ -761,25 +805,24 @@ internal static class MainWindow
                         Notice(string.Format(L("RdpFallback"), next.ToUpperInvariant()), Warn);
                         c = await api.ConnectAsync(d.Id, next);
                     }
-                    var (error, process) = await Viewer.OpenAsync(api, c, Viewer.FindViewer(config.ViewerPath),
+                    var (error, session) = await Viewer.OpenAsync(api, c, Viewer.FindViewer(config.ViewerPath),
                                                                        d.Name, config.ViewerFullScreen,
                                                                        config.Devices.GetValueOrDefault(d.Id), early);
                     early = null;
-                    if (process is null)
+                    if (session is null)
                     {
                         Notice(error, Danger);
                         await api.EndSessionAsync(c.SessionId);
                         return;
                     }
-                    open.Add((process, c.SessionId));
+                    open.Add((session, c.SessionId));
                     Status();
                     // the desktop's own logon screen asks for the user's account (nothing is typed or stored here);
                     // which route the connection took is the pool's business and is not shown
                     if (c.Via == "warpgate") { Notice(L("RdpViaWarpgate"), Accent); }
-                    process.EnableRaisingEvents = true;
-                    process.Exited += async (_, _) =>
+                    session.Exited += async (_, _) =>
                     {
-                        open.RemoveAll(o => o.Process == process);
+                        open.RemoveAll(o => o.Session == session);
                         Dispatcher.UIThread.Post(Status);
                         await api.EndSessionAsync(c.SessionId);
                     };
@@ -982,7 +1025,11 @@ internal static class MainWindow
             if (selected) { tile.BorderBrush = B(Action); tile.BorderThickness = new Thickness(2); tile.Margin = new Thickness(-1, -1, 11, 11); }
             tile.PointerEntered += (_, _) => { if (!selected) { tile.BorderBrush = B(Color.Parse("#9FB2CB")); } };
             tile.PointerExited += (_, _) => { if (!selected) { tile.BorderBrush = B(Hair); } };
-            tile.Tapped += (_, _) => { if (selectedId != d.Id) { selectedId = d.Id; Render(); } };
+            tile.Tapped += (_, _) =>
+            {
+                if (selectedId != d.Id) { selectedId = d.Id; Render(); }
+                if (narrowDetail) { sheet.IsVisible = true; }
+            };
             tile.DoubleTapped += async (_, _) => await Connect();
             return tile;
         }
@@ -993,7 +1040,7 @@ internal static class MainWindow
             signedOut = true;
             foreach (var (p, sid) in open.ToList())
             {
-                try { if (!p.HasExited) { p.Kill(); } } catch { }
+                p.End();
                 await api.EndSessionAsync(sid);
             }
             await api.LogoutAsync();
@@ -1050,7 +1097,7 @@ internal static class MainWindow
             timer.Stop();
             foreach (var (p, sid) in open.ToList())
             {
-                try { if (!p.HasExited) { p.Kill(); } } catch { }
+                p.End();
                 await api.EndSessionAsync(sid);
             }
             await api.LogoutAsync();
