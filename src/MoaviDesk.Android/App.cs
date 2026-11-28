@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-using Android.App;
 using Android.Content.PM;
 using Android.Runtime;
 using Avalonia.Android;
@@ -12,6 +11,7 @@ using MoaviDesk.Config;
 using MoaviDesk.Services;
 using MoaviDesk.UI;
 using Application = Avalonia.Application;
+using Page = MoaviDesk.UI.Page;
 
 namespace MoaviDesk;
 

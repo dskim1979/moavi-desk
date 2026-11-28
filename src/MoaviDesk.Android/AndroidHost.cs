@@ -3,9 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-using Android.App;
 using Android.Content;
-using Android.OS;
 
 namespace MoaviDesk;
 

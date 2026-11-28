@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-using Android.App;
 using Android.Content;
 using MoaviDesk.Config;
 
@@ -60,7 +59,7 @@ internal sealed class AndroidRdp(AppConfig config) : IRdpClient
         var global = Java.Lang.Class.ForName("com.freerdp.freerdpcore.application.GlobalApp");
         var map = global.GetDeclaredField("sessionMap");
         map.Accessible = true;
-        if (map.Get(null) is null) { map.Set(null, Java.Util.Collections.SynchronizedMap(new Java.Util.HashMap())); }
+        if (map.Get(null) is null) { map.Set(null, new Java.Util.Concurrent.ConcurrentHashMap()); }
 
         var settings = Java.Lang.Class.ForName("com.freerdp.freerdpcore.presentation.ApplicationSettingsActivity");
         settings.GetMethod("get", Java.Lang.Class.FromType(typeof(Context)))!.Invoke(null, context.ApplicationContext);
