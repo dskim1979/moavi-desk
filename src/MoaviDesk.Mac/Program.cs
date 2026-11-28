@@ -27,6 +27,13 @@ internal sealed class Program
             var (file, password) = TestRdp.Of(spec);
             start = () => _ = rdp.OpenAsync(file, "RDP check", false, password, new DevicePolicy(true, true, true));
         }
+        // a real .rdp from the engine (direct, 장치 연결 방식 / rdpgw, Warpgate): opened as MOAVI Desk opens it
+        else if (Environment.GetEnvironmentVariable("MOAVI_TEST_RDP_FILE") is { Length: > 0 } path && Platform.Rdp is { } rdp2)
+        {
+            var file = File.ReadAllText(path);
+            var password = Environment.GetEnvironmentVariable("MOAVI_TEST_PASSWORD");
+            start = () => _ = rdp2.OpenAsync(file, "RDP check", false, string.IsNullOrEmpty(password) ? null : password, DevicePolicy.Of(file));
+        }
 #endif
         return MoaviApp.RunDesktop(AppBuilder.Configure<Application>()
                                              .UsePlatformDetect()
