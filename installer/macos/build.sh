@@ -50,7 +50,8 @@ if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
 else
   SIGN=(codesign --force -s -)
 fi
-find "$APP/Contents/Frameworks" "$APP/Contents/MacOS" -type f \( -name "*.dylib" -o -perm -111 \) -print0 |
+# (every file in MacOS: codesign takes the .NET assemblies there as code too; the app itself last)
+find "$APP/Contents/Frameworks" "$APP/Contents/MacOS" -type f ! -path "$APP/Contents/MacOS/moavi-desk" -print0 |
   while IFS= read -r -d '' f; do "${SIGN[@]}" "$f"; done
 "${SIGN[@]}" "$APP"
 codesign --verify --deep --strict "$APP"
