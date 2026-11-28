@@ -4,40 +4,70 @@
 
 > **MOAVI Desk는 100% 무료 오픈소스로 배포됩니다.** 이 클라이언트는 MIT, 서버(콘솔 · 엔진)는 AGPL-3.0입니다.
 
-MOAVI Desk 사용자가 설치해 쓰는 Windows 클라이언트입니다. 브라우저(HTML5 콘솔) 없이 내 데스크톱을
-**RDP 우선**으로, 또는 SPICE · VNC로 엽니다. (주)매커스시스템즈 MOAVI Desk 서버에 붙습니다.
+MOAVI Desk 사용자가 설치해 쓰는 Windows 클라이언트입니다. 브라우저 없이 내 데스크톱을 **프로그램 안의 원격 창**으로
+엽니다(RDP 우선, SPICE · VNC도 가능). (주)매커스시스템즈 MOAVI Desk 서버에 붙습니다.
 
-| 로그인 | 설정 | 내 데스크톱 |
+최신 버전: [v1.1.2](https://github.com/dskim1979/moavi-desk/releases/latest) — 설치 파일(MSI)과 실행 파일(exe)이 릴리스에 있습니다.
+
+![내 데스크톱](docs/main.png)
+
+| 로그인 | 설정 · 서버 | 설정 · RDP |
 |---|---|---|
-| ![로그인](docs/login.png) | ![설정](docs/settings.png) | ![내 데스크톱](docs/desktops.png) |
+| ![로그인](docs/login.png) | ![설정](docs/settings.png) | ![RDP 설정](docs/settings-rdp.png) |
 
 ## 하는 일
 
-- **서버 설정**: 설정(톱니바퀴)에서 서버 주소(IP 또는 도메인), 포트, HTTPS를 정하고 **접속 테스트**로
-  MOAVI Desk 서버가 응답하는지(응답 시간) 확인한 뒤 저장합니다. 키오스크 모드에서는 관리자 비밀번호가 있어야 열립니다.
-- **로그인**: 사용자 이름과 비밀번호만 입력합니다. 서버 주소는 화면에 나오지 않고, 대신 서버 연결 상태
-  (연결됨 / 연결할 수 없음 / 설정 안 됨)를 15초마다 확인해 보여 줍니다. 계정이 OTP를 쓰면 OTP 칸이 열립니다.
-- **내 데스크톱**: 배정된 데스크톱을 카드로 보여 줍니다(상태, 사양, 프로토콜). 20초마다 새로 고칩니다.
-  메뉴에서 시작, 다시 시작, 종료를 할 수 있습니다.
-- **접속** (기본: 자동 — RDP → SPICE → VNC 중 풀이 허용한 첫 번째, 카드에서 바꿀 수 있음)
-  - RDP: 엔진이 준 `.rdp` 파일을 Windows 원격 데스크톱 연결(mstsc)로 엽니다. mstsc가 회선을 재서 UDP와
-    H.264/AVC를 고르므로 지점 · 재택에서 가장 가볍습니다. 클립보드 · 내 PC 드라이브 · 프린터는 풀 정책대로입니다.
-    RDP 서버가 없는 Linux 데스크톱(엔진이 `NO_RDP`)이나 주소가 아직 없으면 다음 방식(SPICE)으로 자동으로 엽니다.
-  - SPICE: 엔진이 준 `.vv` 파일로 remote-viewer를 엽니다. USB, 오디오, 다중 모니터를 쓸 수 있습니다.
-  - VNC: 엔진의 콘솔 웹소켓을 로컬 TCP 포트로 이어 주고(브리지), remote-viewer가 그 포트에 붙습니다.
-  - 뷰어를 닫으면 세션이 끝납니다 (`/api/vlab/sessions/<id>/end`).
+### 로그인
+- 사용자 이름과 비밀번호만 입력합니다. 서버 주소는 화면에 나오지 않고, 서버 연결 상태(연결됨 / 연결할 수 없음 /
+  설정 안 됨)를 15초마다 확인해 보여 줍니다. 계정이 OTP를 쓰면 OTP 칸이 열립니다.
+- 비밀번호 저장(이 Windows 사용자만 풀 수 있게 암호화)과 자동 로그인을 고를 수 있습니다. 실습실 PC · 키오스크에서는 꺼집니다.
+- 설정(톱니바퀴)에서 서버 주소 · 포트 · HTTPS를 정하고 **접속 테스트**로 응답 시간을 확인한 뒤 저장합니다.
+
+### 내 데스크톱 (작업 공간)
+- 배정된 데스크톱을 타일로 보여 줍니다. 켜진 Windows 데스크톱은 **화면 섬네일**(20초마다)과 로그인한 사용자가
+  보이고, 화면이 꺼져 있으면 "화면 꺼짐"으로 표시합니다(섬네일은 풀 정책으로 끌 수 있음).
+- 왼쪽: 모든 데스크톱 · 즐겨찾기 · 실행 중 · 최근 사용, **대여 중**인 카드 · USB 장치와 반납 시각, 바로 가기(웹 포털, 원격 지원).
+- 오른쪽 정보 패널: 고른 데스크톱의 큰 화면, OS · 풀 · 사양 · 접속 방식 · 로그인 · 최근 접속 · 클립보드,
+  공유 폴더 경로(복사 버튼), **장치** 체크박스, 접속과 전원 버튼(풀 정책이 허용할 때만).
+- 관리자 공지가 위쪽 알림 줄에 나옵니다. 검색, 정렬(이름순 · 최근 접속순)이 있습니다.
+
+### 접속
+- 기본은 자동 — 풀이 허용한 RDP → SPICE → VNC 중 첫 번째. 접속 버튼 옆 ▾에서 바꿀 수 있습니다.
+- **RDP는 MOAVI Desk 창 안에서 엽니다.** Windows 원격 데스크톱 연결(mstsc)을 따로 띄우지 않습니다.
+  - Windows의 원격 데스크톱 구성 요소(mstsc와 같은 엔진)를 써서 회선에 맞게 UDP · H.264/AVC를 고릅니다.
+  - 접속을 누르면 창이 바로 뜨고("연결하는 중"), 전체 화면 설정이면 화면을 가득 채운 뒤 연결되면 전체 화면이 됩니다.
+  - 위쪽 막대: **장치**(드라이브 · USB · 플러그 앤 플레이 장치를 접속 중에 켜고 끄기, 프린터 · 클립보드 상태),
+    Ctrl+Alt+Del, 전체 화면, 연결 끊기.
+  - 풀이 "장치 연결 방식"이면 MOAVI 서버의 RD 게이트웨이를 거칩니다. 게이트웨이 토큰도 창 안에서 처리합니다.
+  - RDP 서버가 없는 Linux 데스크톱(엔진이 `NO_RDP`)이나 주소가 아직 없으면 다음 방식(SPICE)으로 엽니다.
+- **Windows 자동 로그인**: 풀이 자동 로그인을 쓰면 Windows 로그인 화면 없이 바로 바탕 화면으로 들어갑니다.
+  데스크톱을 고르는 순간 로그인을 미리 준비해 접속이 빨라집니다.
+- **장치 고르기**: 정보 패널의 USB 장치 · 드라이브 · 프린터 체크박스로 데스크톱마다 넘길 것을 정합니다(다음 접속부터).
+  풀 정책이 허용하지 않는 항목은 꺼진 채로 보입니다. RemoteFX USB(특수 USB 장치를 통째로 넘기기)는 창 안 RDP에서는 되지 않고,
+  USB 메모리 · 디스크는 드라이브로, 휴대폰 · 카메라는 플러그 앤 플레이 장치로 넘어갑니다.
+- SPICE: 엔진이 준 `.vv` 파일로 remote-viewer를 엽니다. USB, 오디오, 다중 모니터를 쓸 수 있습니다.
+- VNC: 엔진의 콘솔 웹소켓을 로컬 TCP 포트로 이어 주고(브리지), remote-viewer가 그 포트에 붙습니다.
+- 창을 닫으면 세션이 끝납니다(`/api/vlab/sessions/<id>/end`).
+
+### 설정
+- 서버 · 일반(언어, 배경 사진 — 기본 제공 사진 또는 내 사진) · **RDP**(색 깊이, 소리, 마이크, 화면 배율, 네트워크) ·
+  LAB · 키오스크 · 정보. 드라이브 · 프린터 · 클립보드 · USB는 풀 정책을 따릅니다.
+
+### 실습실 PC와 에이전트
 - **LAB PC**: 설정에 단말 키(`mdt_…`, 관리자 콘솔 → 단말 관리)를 넣으면, 로그인하자마자 그 실습실의
-  현재 수업 데스크톱이 전체 화면으로 열립니다. 뷰어를 닫으면 로그아웃되어 다음 사람이 씁니다.
+  현재 수업 데스크톱이 전체 화면으로 열립니다. 창을 닫으면 로그아웃되어 다음 사람이 씁니다.
   키오스크 모드(전체 화면, 종료 시 관리자 비밀번호)와 함께 쓰고, 단말은 MAC으로 등록됩니다.
-- **업데이트**: 엔진의 `/api/vlab/client/config`가 알려 주는 최신 버전이면 다운로드 버튼을 보여 주고,
-  최소 버전보다 낮으면 로그인을 막고 다운로드 페이지를 엽니다.
-- **원격지원 요청**: 화이트라벨의 지원 URL, 없으면 https://support.makussystems.co.kr/ 을 엽니다.
 - **MOAVI Desk 에이전트**: MSI가 클라이언트와 함께 Windows 서비스 "MOAVI Desk Agent"(`moavi-desk.exe --agent`,
   LocalSystem, 자동 시작)를 설치합니다. 등록 코드를 넣어 설치한 실습실 PC는 켜지자마자(아무도 로그인하지 않아도, 클라이언트를
   열지 않아도) 관리 콘솔 [LAB > 단말 관리]에 승인 대기로 올라가고, 2분마다 하트비트(컴퓨터 이름, 기본 경로 NIC의 MAC, IP, OS,
   클라이언트 · 에이전트 버전, Windows 로그인 유무)를 보냅니다. 관리자가 승인하면 다음 하트비트에 키오스크 키를 한 번 받아
   저장하고, 클라이언트(키오스크 모드)가 그 키를 씁니다. 코드가 없는 PC(개인 PC)에서는 에이전트가 아무것도 하지 않습니다.
-- 한국어와 영어. 설정은 아래 "설정 파일"을 보세요.
+
+### 그 밖에
+- **업데이트**: 엔진의 `/api/vlab/client/config`가 알려 주는 최신 버전이면 다운로드 버튼을 보여 주고,
+  최소 버전보다 낮으면 로그인을 막고 다운로드 페이지를 엽니다.
+- **원격지원 요청**: 화이트라벨의 지원 URL, 없으면 https://support.makussystems.co.kr/ 을 엽니다.
+- 한국어와 영어. 설정 파일은 아래를 보세요.
 
 ## 설정 파일
 
@@ -70,7 +100,7 @@ dotnet publish src/MoaviDesk/MoaviDesk.csproj -c Release -r win-x64
 
 ```
 powershell -ExecutionPolicy Bypass -File installer/build.ps1
-powershell -ExecutionPolicy Bypass -File installer/build.ps1 -VirtViewerMsi virt-viewer-x64-11.0-1.0.msi -Version 0.9.1
+powershell -ExecutionPolicy Bypass -File installer/build.ps1 -VirtViewerMsi virt-viewer-x64-11.0-1.0.msi -Version 1.1.2
 ```
 
 `build.ps1`은 `moavi-desk.exe`를 게시(`artifacts/publish/win-x64`)하고 MSI(`artifacts/msi/MOAVI-Desk-<버전>-x64.msi`)를 만듭니다.
@@ -96,7 +126,7 @@ powershell -ExecutionPolicy Bypass -File installer/build.ps1 -VirtViewerMsi virt
    여러 PC에서 실행합니다(코드의 PC 수 한도 · 기한까지).
 3. **명령 줄 · 배포 도구 (GPO · SCCM · Intune · PDQ)**:
    ```
-   msiexec /i MOAVI-Desk-0.9.1-x64.msi /qn SERVER=desk.example.com PORT=443 HTTPS=1 KIOSK=1 ENROLL_CODE=MDE-XXXX-XXXX-XXXX
+   msiexec /i MOAVI-Desk-1.1.2-x64.msi /qn SERVER=desk.example.com PORT=443 HTTPS=1 KIOSK=1 ENROLL_CODE=MDE-XXXX-XXXX-XXXX
    ```
    또는 MSI와 같은 폴더에 `moavi-desk-enroll.json`을 두고 MSI를 실행합니다(명령 줄 값이 파일보다 앞섬):
    ```json
@@ -127,9 +157,11 @@ powershell -ExecutionPolicy Bypass -File installer/build.ps1 -VirtViewerMsi virt
 
 ### CI와 릴리스
 
+버전은 마지막 자리만 올립니다(1.1.1 → 1.1.2 → …). 2026-11-28에 이전 릴리스(0.9.0 ~ 1.2.5)를 정리하고 1.1.1부터 다시 시작했습니다.
+
 - `.github/workflows/ci.yml`: main에 push/PR 하면 Windows에서 빌드하고 `moavi-desk.exe`와 MSI(virt-viewer 없음)를
   아티팩트로 올립니다.
-- `.github/workflows/release.yml`: `v*` 태그를 push 하면 virt-viewer MSI를 받아 넣은 MSI와 exe를 만들어
+- `.github/workflows/release.yml`: `v*` 태그(예: `v1.1.2`)를 push 하면 virt-viewer MSI를 받아 넣은 MSI와 exe를 만들어
   GitHub 릴리스에 붙입니다. 다른 곳(WinGet, AUR 등)에는 올리지 않습니다. `VIRT_VIEWER_SHA256`은 아직 비어 있어
   받은 파일의 해시만 출력합니다. 첫 릴리스 때 확인한 해시로 고정하세요.
 
@@ -163,6 +195,7 @@ powershell -ExecutionPolicy Bypass -File installer/build.ps1 -VirtViewerMsi virt
 - 코드 서명(위 참고).
 - `VIRT_VIEWER_SHA256` 고정.
 - 실제 클러스터에서 SPICE/VNC 접속 확인.
+- 창 안 RDP에서 RemoteFX USB(특수 USB 장치 통째로 넘기기).
 - 실제 실습실 PC에서 서비스 설치 · 설치 파일(install.cmd) · 무인 설치(`/qn`, GPO) · 자동 등록 · 키 전달 확인.
 
 ## 라이선스
