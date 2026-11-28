@@ -62,14 +62,25 @@ internal static class RdpWindow
         return d;
     }
 
-    /// <summary>True when the control can open this file. Two things only Windows' own Remote Desktop
-    /// app (mstsc) does, so such a file opens there: an RD Gateway with an access token (the bundled
-    /// rdpgw), and the pool's USB / camera redirection (RemoteFX USB, usbdevicestoredirect /
-    /// camerastoredirect - the engine writes them only when the pool policy and USB 정책 allow USB).</summary>
-    public static bool CanEmbed(Dictionary<string, string> s)
-        => !Has(s, "gatewayaccesstoken") && !Has(s, "usbdevicestoredirect") && !Has(s, "camerastoredirect");
+    /// <summary>Every connection opens in MOAVI Desk's own window - Windows' Remote Desktop app is never
+    /// started. The bundled RD Gateway's access token goes into the control as its pre-authentication
+    /// cookie (RdpForm.Gateway). RemoteFX USB (usbdevicestoredirect / camerastoredirect) is the one
+    /// thing only mstsc has: here USB storage comes as drives and phones / cameras as plug-and-play
+    /// devices, as far as the pool allows them.</summary>
+    public static bool CanEmbed(Dictionary<string, string> s) => true;
 
-    private static bool Has(Dictionary<string, string> s, string key) => s.TryGetValue(key, out var v) && v.Trim().Length > 0;
+    /// <summary>The RD Gateway access token as the control takes it (GatewayEncryptedAuthCookie): the
+    /// token in UTF-16 with its terminating zero, protected with DPAPI for this Windows user, base64.</summary>
+    public static string GatewayCookie(string token)
+    {
+        var clear = System.Text.Encoding.Unicode.GetBytes(token + '\0');
+        try
+        {
+            return Convert.ToBase64String(System.Security.Cryptography.ProtectedData.Protect(
+                clear, null, System.Security.Cryptography.DataProtectionScope.CurrentUser));
+        }
+        finally { Array.Clear(clear); }
+    }
 
     private static readonly System.Drawing.Text.PrivateFontCollection Fonts = LoadFonts();
 
@@ -174,6 +185,7 @@ internal static class RdpWindow
             StartPosition = WF.FormStartPosition.CenterScreen;
             var area = WF.Screen.PrimaryScreen?.WorkingArea ?? new SD.Rectangle(0, 0, 1600, 900);
             Size = new SD.Size(Math.Min(1600, area.Width * 9 / 10), Math.Min(960, area.Height * 9 / 10));
+            if (_full) { WindowState = WF.FormWindowState.Maximized; }   // full screen once connected; until then the whole screen too
             try { Icon = SD.Icon.ExtractAssociatedIcon(Environment.ProcessPath!); } catch { }
 
             var bar = new WF.Panel { Dock = WF.DockStyle.Top, Height = 40, BackColor = Bar, Padding = new WF.Padding(12, 0, 8, 0) };
@@ -286,7 +298,19 @@ internal static class RdpWindow
                 r.TransportSettings.GatewayHostname = gateway;
                 r.TransportSettings.GatewayUsageMethod = int.TryParse(S("gatewayusagemethod", "1"), out var gu) ? gu : 1;
                 r.TransportSettings.GatewayProfileUsageMethod = 1;
-                r.TransportSettings.GatewayCredsSource = int.TryParse(S("gatewaycredentialssource", "4"), out var gc) ? gc : 4;
+                var token = S("gatewayaccesstoken");
+                if (token.Length > 0)
+                {
+                    // the bundled rdpgw (장치 연결 방식): a short-lived token the engine signed instead of a gateway sign-in
+                    r.TransportSettings.GatewayCredsSource = 5;   // cookie-based (pre-authentication)
+                    var cookie = GatewayCookie(token);
+                    r.TransportSettings.GatewayEncryptedAuthCookie = cookie;
+                    r.TransportSettings.GatewayEncryptedAuthCookieSize = (uint)cookie.Length;
+                }
+                else
+                {
+                    r.TransportSettings.GatewayCredsSource = int.TryParse(S("gatewaycredentialssource", "4"), out var gc) ? gc : 4;
+                }
             }
 
             var ns = (IMsRdpClientNonScriptable3)(object)r;
