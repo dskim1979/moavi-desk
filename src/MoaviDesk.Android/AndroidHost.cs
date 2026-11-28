@@ -17,6 +17,23 @@ internal sealed class AndroidHost : Java.Lang.Object, Android.App.Application.IA
     public static readonly Queue<Services.AndroidRdp.Session> Waiting = new();
     private static readonly Dictionary<Activity, Services.AndroidRdp.Session> Open = [];
 
+    /// <summary>Sessions in another app (SPICE): they end when MOAVI Desk is back in front.</summary>
+    public static readonly List<ElsewhereSession> Elsewhere = [];
+
+    internal sealed class ElsewhereSession : Services.RemoteSession
+    {
+        private bool _ended;
+        public bool Left { get; set; }
+        public override bool HasExited => _ended;
+        public override void End() => Ended();
+        public void Ended()
+        {
+            if (_ended) { return; }
+            _ended = true;
+            Avalonia.Threading.Dispatcher.UIThread.Post(RaiseExited);
+        }
+    }
+
     public static void OpenUrl(string url)
     {
         try
@@ -44,8 +61,17 @@ internal sealed class AndroidHost : Java.Lang.Object, Android.App.Application.IA
         if (Open.Remove(activity, out var s) && activity.IsFinishing) { s.Ended(); }
     }
 
-    public void OnActivityPaused(Activity activity) { }
-    public void OnActivityResumed(Activity activity) { if (activity is MainActivity) { Main = activity; } }
+    public void OnActivityPaused(Activity activity)
+    {
+        if (activity is MainActivity) { foreach (var s in Elsewhere) { s.Left = true; } }
+    }
+
+    public void OnActivityResumed(Activity activity)
+    {
+        if (activity is not MainActivity) { return; }
+        Main = activity;
+        foreach (var s in Elsewhere.Where(s => s.Left).ToList()) { Elsewhere.Remove(s); s.Ended(); }
+    }
     public void OnActivitySaveInstanceState(Activity activity, Bundle outState) { }
     public void OnActivityStarted(Activity activity) { }
     public void OnActivityStopped(Activity activity) { }

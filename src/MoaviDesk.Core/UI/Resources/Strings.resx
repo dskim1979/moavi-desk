@@ -231,6 +231,9 @@ Open-source notices: LICENSE.md and 3rd-party-licenses.md in the install folder.
   <data name="Folder_scratch"><value>Scratch</value></data>
   <data name="PanelDevices"><value>DEVICES</value></data>
   <data name="BackToList"><value>Back to the list</value></data>
+  <data name="VncKeyboard"><value>Keyboard</value></data>
+  <data name="VncClose"><value>Close</value></data>
+  <data name="SpiceAppNeeded"><value>SPICE needs the aSPICE app. Install it, then connect again.</value></data>
   <data name="DeviceUsb"><value>USB devices</value></data>
   <data name="DeviceDrives"><value>Drives</value></data>
   <data name="DevicePrinters"><value>Printers</value></data>

@@ -29,6 +29,8 @@ public sealed class App : Application
             Platform.Rdp = AndroidRdp.Available() ? new AndroidRdp(config) : null;
             Platform.RemoteViewer = false;
             Platform.Vault = new KeystoreVault();
+            Platform.InAppVnc = true;
+            Platform.OpenSpice = SpiceHandoff.OpenAsync;
             Platform.OpenUrl = AndroidHost.OpenUrl;
 
             var stack = new PageStack();

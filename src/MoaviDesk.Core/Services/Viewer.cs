@@ -29,7 +29,12 @@ internal static class Viewer
     public static List<string> Offered(IEnumerable<string> fromEngine)
     {
         var have = fromEngine.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return Order.Where(p => have.Contains(p) && (p == "rdp" ? Platform.Rdp is not null : Platform.RemoteViewer)).ToList();
+        return Order.Where(p => have.Contains(p) && p switch
+        {
+            "rdp" => Platform.Rdp is not null,
+            "spice" => Platform.RemoteViewer || Platform.OpenSpice is not null,
+            _ => Platform.RemoteViewer || Platform.InAppVnc
+        }).ToList();
     }
 
     public static async Task<(string Error, RemoteSession? Session)> OpenAsync(DeskApi api, ConnectInfo c,
@@ -51,6 +56,14 @@ internal static class Viewer
             return await rdp.OpenAsync(c.Rdp, title, fullScreen, SignInPassword(api, c));
         }
 
+        if (c.Type == "spice" && !Platform.RemoteViewer && Platform.OpenSpice is { } openSpice)
+        {
+            return await openSpice(AddFullScreen(c.Vv ?? "", fullScreen));
+        }
+        if (c.Type == "vnc" && c.WsPath is { Length: > 0 } && Platform.InAppVnc)
+        {
+            return await MoaviDesk.UI.VncPage.OpenAsync(api, c, title);
+        }
         if (!Platform.RemoteViewer) { return (L("ViewerLaunchFailed"), null); }
         var viewer = string.IsNullOrWhiteSpace(viewerPath) ? null : RemoteViewer.Resolve(viewerPath);
         if (viewer is null) { return (L("ViewerPathNotSet"), null); }

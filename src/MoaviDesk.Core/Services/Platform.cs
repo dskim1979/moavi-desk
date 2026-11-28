@@ -73,6 +73,12 @@ internal static class Platform
     /// <summary>Whether SPICE / VNC open in remote-viewer here (not on Android).</summary>
     public static bool RemoteViewer { get; set; } = true;
 
+    /// <summary>VNC in MOAVI Desk's own page (UI/VncPage, RfbClient) instead of remote-viewer (Android).</summary>
+    public static bool InAppVnc { get; set; }
+
+    /// <summary>Hands a SPICE .vv to another app (Android: a SPICE app such as aSPICE); null = remote-viewer.</summary>
+    public static Func<string, Task<(string Error, RemoteSession? Session)>>? OpenSpice { get; set; }
+
     /// <summary>Opens a web page (portal, support, download); the default starts the system's browser.</summary>
     public static Action<string> OpenUrl { get; set; } = url =>
     {
