@@ -87,7 +87,12 @@ internal static class Viewer
     public static string FindViewer(string configured)
     {
         if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured)) { return configured; }
-        if (!OperatingSystem.IsWindows()) { return string.IsNullOrWhiteSpace(configured) ? "remote-viewer" : configured; }
+        if (!OperatingSystem.IsWindows())
+        {
+            if (!string.IsNullOrWhiteSpace(configured)) { return configured; }
+            // macOS: an app started from the Finder has no Homebrew in its PATH (brew install virt-viewer)
+            return new[] { "/opt/homebrew/bin/remote-viewer", "/usr/local/bin/remote-viewer" }.FirstOrDefault(File.Exists) ?? "remote-viewer";
+        }
 
         var here = AppContext.BaseDirectory;
         string[] candidates =

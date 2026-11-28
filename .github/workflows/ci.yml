@@ -39,3 +39,123 @@ jobs:
           name: moavi-desk-msi
           path: artifacts/msi/*.msi
           if-no-files-found: error
+
+  # MOAVI Desk.app with FreeRDP (universal, built from source by FreeRDP's macOS script and cached),
+  # one .dmg per architecture. Signed ad hoc unless the MACOS_* / APPLE_* secrets are set (installer/macos/build.sh).
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 150
+    env:
+      FREERDP_VERSION: 3.33.1
+      HAS_MAC_CERT: ${{ secrets.MACOS_CERT_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: FreeRDP cache
+        id: freerdp
+        uses: actions/cache@v4
+        with:
+          path: artifacts/freerdp-macos
+          key: freerdp-macos-${{ env.FREERDP_VERSION }}-${{ hashFiles('installer/macos/build-freerdp.sh') }}
+
+      - name: Build FreeRDP
+        if: steps.freerdp.outputs.cache-hit != 'true'
+        run: |
+          brew install autoconf automake libtool meson ninja nasm
+          ./installer/macos/build-freerdp.sh
+
+      - name: Import signing certificate
+        if: env.HAS_MAC_CERT == 'true'
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          echo "$MACOS_CERT_P12" | base64 --decode > cert.p12
+          security create-keychain -p ci build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          security import cert.p12 -k build.keychain -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+          rm cert.p12
+
+      - name: App and .dmg
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          ./installer/macos/build.sh osx-arm64
+          ./installer/macos/build.sh osx-x64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moavi-desk-macos
+          path: artifacts/macos/*.dmg
+          if-no-files-found: error
+
+  # The APK (arm64 phones and tablets, x86_64 emulator) with FreeRDP's Android session screen (built from
+  # source by FreeRDP's Gradle build and cached). Signed with the debug key unless the ANDROID_* secrets are set.
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      FREERDP_VERSION: 3.33.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: FreeRDP cache
+        id: freerdp
+        uses: actions/cache@v4
+        with:
+          path: artifacts/freerdp-android
+          key: freerdp-android-${{ env.FREERDP_VERSION }}-${{ hashFiles('installer/android/build-freerdp.sh') }}
+
+      - name: Build FreeRDP
+        if: steps.freerdp.outputs.cache-hit != 'true'
+        run: ./installer/android/build-freerdp.sh
+
+      - name: .NET for Android
+        run: |
+          dotnet workload install android
+          dotnet build src/MoaviDesk.Android/MoaviDesk.Android.csproj -t:InstallAndroidDependencies \
+            -p:AndroidSdkDirectory="$ANDROID_HOME" -p:AcceptAndroidSDKLicenses=True
+
+      - name: APK
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          SIGN=()
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/moavi.keystore"
+            SIGN=(-p:AndroidKeyStore=true -p:AndroidSigningKeyStore="$RUNNER_TEMP/moavi.keystore"
+                  -p:AndroidSigningKeyAlias="$ANDROID_KEY_ALIAS" -p:AndroidSigningKeyPass="env:ANDROID_KEYSTORE_PASSWORD"
+                  -p:AndroidSigningStorePass="env:ANDROID_KEYSTORE_PASSWORD")
+          fi
+          dotnet publish src/MoaviDesk.Android/MoaviDesk.Android.csproj -c Release -f net10.0-android \
+            -p:AndroidSdkDirectory="$ANDROID_HOME" "${SIGN[@]}" -o artifacts/android
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)
+          apk=$(ls artifacts/android/*-Signed.apk | head -1)
+          mv "$apk" "artifacts/android/moavi-desk-$version-android.apk"
+          unzip -l "artifacts/android/moavi-desk-$version-android.apk" | grep -E "libfreerdp|classes" || echo "::warning::no FreeRDP in the APK"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moavi-desk-android
+          path: artifacts/android/moavi-desk-*-android.apk
+          if-no-files-found: error

@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- MOAVI Desk for Android: the shared pages (MoaviDesk.Core) in one view, RDP through FreeRDP's Android
+       session screen (freeRDPCore, built by installer/android/build-freerdp.sh; AndroidRdp.cs). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>29</SupportedOSPlatformVersion>
+    <AssemblyName>MoaviDesk.Android</AssemblyName>
+    <RootNamespace>MoaviDesk</RootNamespace>
+    <ApplicationId>com.makussystems.moavidesk</ApplicationId>
+    <ApplicationTitle>MOAVI Desk</ApplicationTitle>
+    <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
+    <!-- 1.1.4 → 10104 -->
+    <ApplicationVersion>$([MSBuild]::Add($([MSBuild]::Add($([MSBuild]::Multiply($(Version.Split('.')[0]), 10000)), $([MSBuild]::Multiply($(Version.Split('.')[1]), 100)))), $(Version.Split('.')[2])))</ApplicationVersion>
+    <RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <!-- the engine's JSON and the YAML settings are read by reflection: nothing trimmed -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <IsPackable>false</IsPackable>
+    <FreeRdpAar Condition="'$(FreeRdpAar)' == ''">$(MSBuildThisFileDirectory)..\..\artifacts\freerdp-android\freeRDPCore-release.aar</FreeRdpAar>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MoaviDesk.Core\MoaviDesk.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Android" />
+  </ItemGroup>
+
+  <!-- FreeRDP's session screen and what it needs (its build.gradle dependencies); without the .aar the app
+       builds without RDP -->
+  <ItemGroup Condition="Exists('$(FreeRdpAar)')">
+    <AndroidLibrary Include="$(FreeRdpAar)" Bind="false" />
+    <PackageReference Include="Xamarin.AndroidX.Preference" />
+    <PackageReference Include="Xamarin.AndroidX.RecyclerView" />
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.ViewModel" />
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData" />
+    <PackageReference Include="Xamarin.AndroidX.Room.Runtime" />
+    <PackageReference Include="Xamarin.AndroidX.Sqlite" />
+    <AndroidMavenLibrary Include="net.zetetic:sqlcipher-android" Version="4.17.0" Bind="false" />
+  </ItemGroup>
+</Project>
