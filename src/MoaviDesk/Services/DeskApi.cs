@@ -48,6 +48,10 @@ internal sealed class DeskPolicy
     public string? Clipboard { get; set; }
     [JsonPropertyName("allow_power")] public bool AllowPower { get; set; } = true;
     [JsonPropertyName("screen_thumbnail")] public bool? ScreenThumbnail { get; set; }
+    // what may pass to the desktop (the pool's switches); the user can leave any of them out
+    [JsonPropertyName("client_drives")] public bool? ClientDrives { get; set; }
+    [JsonPropertyName("client_printers")] public bool? ClientPrinters { get; set; }
+    [JsonPropertyName("usb_redirect")] public bool? UsbRedirect { get; set; }
 }
 
 /// <summary>공유 저장소: the user's folders on the pool's NAS (home / project / scratch).</summary>

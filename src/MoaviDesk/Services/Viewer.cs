@@ -33,12 +33,14 @@ internal static class Viewer
     }
 
     public static async Task<(string Error, Process? Process)> OpenAsync(DeskApi api, ConnectInfo c,
-                                                                       string viewerPath, string title, bool fullScreen)
+                                                                       string viewerPath, string title, bool fullScreen,
+                                                                       MoaviDesk.Config.DeviceChoice? devices = null)
     {
         if (c.Type == "rdp")
         {
             if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(c.Rdp)) { return (L("RdpNeedsWindows"), null); }
             if (!fullScreen) { c.Rdp = c.Rdp.Replace("screen mode id:i:2", "screen mode id:i:1", StringComparison.Ordinal); }
+            if (devices is not null) { c.Rdp = WithDevices(c.Rdp, devices); }
             var (embedded, error, process) = RdpLauncher.Open(c.Rdp, title, fullScreen, SignInPassword(api, c));
             return embedded ? (error, process) : OpenRdp(c.Rdp, fullScreen);
         }
@@ -127,6 +129,27 @@ internal static class Viewer
             try { File.Delete(file); } catch { }
             return (ex.Message, null);
         }
+    }
+
+    /// <summary>The .rdp without the devices the user left out (it can only take away: what the pool does
+    /// not allow is not in the file, and the desktop refuses it anyway).</summary>
+    public static string WithDevices(string rdp, MoaviDesk.Config.DeviceChoice d)
+    {
+        var lines = rdp.Replace("\r\n", "\n").Split('\n').ToList();
+        void Set(string key, string value)
+        {
+            var i = lines.FindIndex(l => l.StartsWith(key + ":", StringComparison.OrdinalIgnoreCase));
+            if (i >= 0) { lines[i] = $"{key}:{value}"; } else { lines.Insert(Math.Max(0, lines.Count - 1), $"{key}:{value}"); }
+        }
+        if (!d.Drives) { Set("drivestoredirect", "s:"); Set("redirectdrives", "i:0"); }
+        if (!d.Printers) { Set("redirectprinters", "i:0"); }
+        if (!d.Usb)
+        {
+            lines.RemoveAll(l => l.StartsWith("usbdevicestoredirect:", StringComparison.OrdinalIgnoreCase)
+                                 || l.StartsWith("devicestoredirect:", StringComparison.OrdinalIgnoreCase)
+                                 || l.StartsWith("camerastoredirect:", StringComparison.OrdinalIgnoreCase));
+        }
+        return string.Join("\r\n", lines);
     }
 
     private static string AddFullScreen(string vv, bool fullScreen)

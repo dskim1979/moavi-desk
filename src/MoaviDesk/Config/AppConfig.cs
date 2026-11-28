@@ -104,6 +104,10 @@ internal class AppConfig
     /// <summary>The desktop marked with the star (its id); one at a time.</summary>
     public string FavoriteDesktop { get; set; } = string.Empty;
 
+    /// <summary>Per desktop: which of the devices the pool allows this PC passes over (the details
+    /// pane's 장치 boxes). A desktop not in here passes all the pool allows.</summary>
+    public Dictionary<string, DeviceChoice> Devices { get; set; } = [];
+
     /// <summary>After signing in, open the starred desktop (or the only one) straight away.</summary>
     public bool AutoConnect { get; set; } = false;
 
@@ -131,4 +135,12 @@ internal class AppConfig
     /// <summary>A LAB PC or a kiosk: shared, so no kept password and no auto sign-in.</summary>
     [YamlIgnore]
     public bool IsSharedPc => Kiosk || TerminalKey.Length > 0;
+}
+
+/// <summary>The devices a user passes to one desktop (within what its pool allows).</summary>
+public sealed class DeviceChoice
+{
+    public bool Drives { get; set; } = true;
+    public bool Printers { get; set; } = true;
+    public bool Usb { get; set; } = true;
 }
