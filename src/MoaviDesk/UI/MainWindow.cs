@@ -508,6 +508,36 @@ internal static class MainWindow
                 }
             }
 
+            // 장치: what this PC passes to the desktop at the next connect (only what the pool allows)
+            if (d.Protocols.Contains("rdp", StringComparer.OrdinalIgnoreCase))
+            {
+                detail.Children.Add(Heading("PanelDevices"));
+                var choice = config.Devices.GetValueOrDefault(d.Id) ?? new DeviceChoice();
+                var boxes = new WrapPanel();
+                CheckBox Box(string key, bool allowed, bool on, Action<DeviceChoice, bool> set)
+                {
+                    var cb = new CheckBox
+                    {
+                        Content = L(key), IsChecked = allowed && on, IsEnabled = allowed, FontSize = 12.5,
+                        Margin = new Thickness(0, 0, 14, 0), Foreground = B(allowed ? Ink : Subtle)
+                    };
+                    if (!allowed) { ToolTip.SetTip(cb, L("DeviceNotAllowed")); }
+                    cb.IsCheckedChanged += (_, _) =>
+                    {
+                        var c = config.Devices.GetValueOrDefault(d.Id) ?? new DeviceChoice();
+                        set(c, cb.IsChecked == true);
+                        config.Devices[d.Id] = c;
+                        AppConfigManager.Save(config);
+                    };
+                    return cb;
+                }
+                boxes.Children.Add(Box("DeviceUsb", d.Policy?.UsbRedirect != false, choice.Usb, (c, v) => c.Usb = v));
+                boxes.Children.Add(Box("DeviceDrives", d.Policy?.ClientDrives != false, choice.Drives, (c, v) => c.Drives = v));
+                boxes.Children.Add(Box("DevicePrinters", d.Policy?.ClientPrinters != false, choice.Printers, (c, v) => c.Printers = v));
+                detail.Children.Add(boxes);
+                detail.Children.Add(new TextBlock { Text = L("DeviceHint"), FontSize = 11, Foreground = B(Subtle), TextWrapping = TextWrapping.Wrap });
+            }
+
             // actions
             var actions = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
             Button Act(string key, Func<Task> act, bool primary = false, bool enabled = true)
@@ -720,7 +750,8 @@ internal static class MainWindow
                         c = await api.ConnectAsync(d.Id, next);
                     }
                     var (error, process) = await Viewer.OpenAsync(api, c, Viewer.FindViewer(config.ViewerPath),
-                                                                       d.Name, config.ViewerFullScreen);
+                                                                       d.Name, config.ViewerFullScreen,
+                                                                       config.Devices.GetValueOrDefault(d.Id));
                     if (process is null)
                     {
                         Notice(error, Danger);

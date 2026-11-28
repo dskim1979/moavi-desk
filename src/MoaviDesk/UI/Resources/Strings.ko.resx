@@ -209,4 +209,20 @@
   <data name="Folder_home" xml:space="preserve"><value>내 폴더</value></data>
   <data name="Folder_project" xml:space="preserve"><value>프로젝트</value></data>
   <data name="Folder_scratch" xml:space="preserve"><value>임시 공간</value></data>
+  <data name="PanelDevices" xml:space="preserve"><value>장치</value></data>
+  <data name="DeviceUsb" xml:space="preserve"><value>USB 장치</value></data>
+  <data name="DeviceDrives" xml:space="preserve"><value>드라이브</value></data>
+  <data name="DevicePrinters" xml:space="preserve"><value>프린터</value></data>
+  <data name="DeviceNotAllowed" xml:space="preserve"><value>이 데스크톱의 정책이 허용하지 않습니다</value></data>
+  <data name="DeviceHint" xml:space="preserve"><value>다음 접속부터 적용됩니다. 접속 중에는 위쪽 막대의 "장치"에서 바꿉니다.</value></data>
+  <data name="RdpDevices" xml:space="preserve"><value>장치</value></data>
+  <data name="RdpDevDrives" xml:space="preserve"><value>드라이브</value></data>
+  <data name="RdpDevUsb" xml:space="preserve"><value>USB · 장치</value></data>
+  <data name="RdpDevRescan" xml:space="preserve"><value>장치 다시 찾기</value></data>
+  <data name="RdpDevNone" xml:space="preserve"><value>(없음)</value></data>
+  <data name="RdpDevPrinters" xml:space="preserve"><value>프린터: {0}</value></data>
+  <data name="RdpDevClipboard" xml:space="preserve"><value>클립보드: {0}</value></data>
+  <data name="RdpDevOn" xml:space="preserve"><value>연결됨</value></data>
+  <data name="RdpDevOff" xml:space="preserve"><value>꺼짐</value></data>
+  <data name="RdpDevUnread" xml:space="preserve"><value>장치 목록을 읽지 못했습니다</value></data>
 </root>

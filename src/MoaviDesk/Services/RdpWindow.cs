@@ -149,6 +149,45 @@ internal static class RdpWindow
         short GetRedirectDynamicDrives();
         void SetRedirectDynamicDevices(short value);
         short GetRedirectDynamicDevices();
+        IMsRdpDeviceCollection GetDeviceCollection();
+        IMsRdpDriveCollection GetDriveCollection();
+    }
+
+    // the plug-and-play devices and the drives this PC passes, switched on and off during the session
+    // (mstscax.idl; IUnknown interfaces, so declared with their whole vtables)
+    [ComImport, Guid("56540617-d281-488c-8738-6a8fdf64a118"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IMsRdpDeviceCollection
+    {
+        void RescanDevices(short dynRedir);
+        IMsRdpDevice GetDeviceByIndex(uint index);
+        IMsRdpDevice GetDeviceById([MarshalAs(UnmanagedType.BStr)] string id);
+        uint GetDeviceCount();
+    }
+
+    [ComImport, Guid("60c3b9c8-9e92-4f5e-a3e7-604a912093ea"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IMsRdpDevice
+    {
+        [return: MarshalAs(UnmanagedType.BStr)] string GetDeviceInstanceId();
+        [return: MarshalAs(UnmanagedType.BStr)] string GetFriendlyName();
+        [return: MarshalAs(UnmanagedType.BStr)] string GetDeviceDescription();
+        void SetRedirectionState(short value);
+        short GetRedirectionState();
+    }
+
+    [ComImport, Guid("7ff17599-da2c-4677-ad35-f60c04fe1585"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IMsRdpDriveCollection
+    {
+        void RescanDrives(short dynRedir);
+        IMsRdpDrive GetDriveByIndex(uint index);
+        uint GetDriveCount();
+    }
+
+    [ComImport, Guid("d28b5458-f694-47a8-8e61-40356a767e46"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IMsRdpDrive
+    {
+        [return: MarshalAs(UnmanagedType.BStr)] string GetName();
+        void SetRedirectionState(short value);
+        short GetRedirectionState();
     }
 
     private sealed class RdpForm : WF.Form
@@ -205,6 +244,9 @@ internal static class RdpWindow
                 Dock = WF.DockStyle.Right, AutoSize = true, FlowDirection = WF.FlowDirection.LeftToRight,
                 WrapContents = false, BackColor = Bar, Padding = new WF.Padding(0, 5, 0, 0)
             };
+            var devices = BarButton(L("RdpDevices"), (_, _) => { });
+            devices.Click += (_, _) => ShowDevices(devices);
+            buttons.Controls.Add(devices);
             buttons.Controls.Add(BarButton(L("RdpCtrlAltDel"), (_, _) => SendCtrlAltDel()));
             buttons.Controls.Add(BarButton(L("RdpFullScreen"), (_, _) => GoFullScreen()));
             buttons.Controls.Add(BarButton(L("RdpDisconnect"), (_, _) => Close(), Accent));
@@ -373,6 +415,55 @@ internal static class RdpWindow
             var device = scale >= 175 ? 180u : scale >= 125 ? 140u : 100u;
             try { _rdp.UpdateSessionDisplaySettings((uint)s.Width, (uint)s.Height, (uint)s.Width, (uint)s.Height, 0u, scale, device); }
             catch { /* older control or the desktop does not resize: it keeps its size */ }
+        }
+
+        // 장치: the drives and USB / plug-and-play devices of this PC, each switched on or off now; printers
+        // and the clipboard as the connection has them (those are set when it connects)
+        private void ShowDevices(WF.Control anchor)
+        {
+            var menu = new WF.ContextMenuStrip { Font = UiFont(9.5f), ShowCheckMargin = true, ShowImageMargin = false };
+            WF.ToolStripMenuItem Title(string text) => new(text) { Enabled = false, Font = UiFont(9f, SD.FontStyle.Bold) };
+            try
+            {
+                if (_rdp is null) { throw new InvalidOperationException(); }
+                var ns = (IMsRdpClientNonScriptable3)(object)_rdp;
+                menu.Items.Add(Title(L("RdpDevDrives")));
+                var drives = ns.GetDriveCollection();
+                drives.RescanDrives(1);
+                var nd = drives.GetDriveCount();
+                for (uint i = 0; i < nd; i++)
+                {
+                    var drive = drives.GetDriveByIndex(i);
+                    var item = new WF.ToolStripMenuItem(drive.GetName()) { Checked = drive.GetRedirectionState() != 0, CheckOnClick = true };
+                    item.CheckedChanged += (_, _) => { try { drive.SetRedirectionState((short)(item.Checked ? -1 : 0)); } catch { } };
+                    menu.Items.Add(item);
+                }
+                if (nd == 0) { menu.Items.Add(new WF.ToolStripMenuItem(L("RdpDevNone")) { Enabled = false }); }
+                menu.Items.Add(new WF.ToolStripSeparator());
+                menu.Items.Add(Title(L("RdpDevUsb")));
+                var devs = ns.GetDeviceCollection();
+                devs.RescanDevices(1);
+                var nv = devs.GetDeviceCount();
+                for (uint i = 0; i < nv; i++)
+                {
+                    var dev = devs.GetDeviceByIndex(i);
+                    var name = dev.GetFriendlyName();
+                    if (string.IsNullOrWhiteSpace(name)) { name = dev.GetDeviceDescription(); }
+                    var item = new WF.ToolStripMenuItem(name) { Checked = dev.GetRedirectionState() != 0, CheckOnClick = true };
+                    item.CheckedChanged += (_, _) => { try { dev.SetRedirectionState((short)(item.Checked ? -1 : 0)); } catch { } };
+                    menu.Items.Add(item);
+                }
+                if (nv == 0) { menu.Items.Add(new WF.ToolStripMenuItem(L("RdpDevNone")) { Enabled = false }); }
+            }
+            catch
+            {
+                menu.Items.Clear();
+                menu.Items.Add(new WF.ToolStripMenuItem(L("RdpDevUnread")) { Enabled = false });
+            }
+            menu.Items.Add(new WF.ToolStripSeparator());
+            menu.Items.Add(new WF.ToolStripMenuItem(string.Format(L("RdpDevPrinters"), On("redirectprinters") ? L("RdpDevOn") : L("RdpDevOff"))) { Enabled = false });
+            menu.Items.Add(new WF.ToolStripMenuItem(string.Format(L("RdpDevClipboard"), On("redirectclipboard", true) ? L("RdpDevOn") : L("RdpDevOff"))) { Enabled = false });
+            menu.Show(anchor, new SD.Point(0, anchor.Height));
         }
 
         private void GoFullScreen()

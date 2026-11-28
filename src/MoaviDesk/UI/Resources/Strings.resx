@@ -229,4 +229,20 @@ Open-source notices: LICENSE.md and 3rd-party-licenses.md in the install folder.
   <data name="Folder_home"><value>Home</value></data>
   <data name="Folder_project"><value>Project</value></data>
   <data name="Folder_scratch"><value>Scratch</value></data>
+  <data name="PanelDevices"><value>DEVICES</value></data>
+  <data name="DeviceUsb"><value>USB devices</value></data>
+  <data name="DeviceDrives"><value>Drives</value></data>
+  <data name="DevicePrinters"><value>Printers</value></data>
+  <data name="DeviceNotAllowed"><value>This desktop's policy does not allow it</value></data>
+  <data name="DeviceHint"><value>Applies from the next connect. While connected, use Devices in the top bar.</value></data>
+  <data name="RdpDevices"><value>Devices</value></data>
+  <data name="RdpDevDrives"><value>Drives</value></data>
+  <data name="RdpDevUsb"><value>USB · devices</value></data>
+  <data name="RdpDevRescan"><value>Look for devices again</value></data>
+  <data name="RdpDevNone"><value>(none)</value></data>
+  <data name="RdpDevPrinters"><value>Printers: {0}</value></data>
+  <data name="RdpDevClipboard"><value>Clipboard: {0}</value></data>
+  <data name="RdpDevOn"><value>on</value></data>
+  <data name="RdpDevOff"><value>off</value></data>
+  <data name="RdpDevUnread"><value>Could not read the device list</value></data>
 </root>
