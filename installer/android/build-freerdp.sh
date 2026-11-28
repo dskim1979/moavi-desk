@@ -24,20 +24,19 @@ cat > "$STUDIO/release.properties" <<'PROPS'
 ABI_FILTERS=arm64-v8a;x86_64
 SPLIT_ARCHITECTURES=arm64-v8a;x86_64
 SPLIT_ENABLED=false
-COMPILE_API=36
-TARGET_API=36
-TOOLS_VERSION=36.0.0
 CMAKE_ARGUMENTS=-DWITH_FFMPEG=OFF;-DWITH_OPENH264=OFF;-DWITH_OPUS=OFF;-DWITH_WEBP=OFF;-DWITH_JPEG=OFF;-DWITH_PNG=OFF;-DWITH_CJSON=ON;-DWITH_OPENSSL=ON
 PROPS
 
-# what its build.gradle asks for; API 36 above (the SDK repository has no android-37 platform yet)
+# what its build.gradle asks for (API 37 and its build tools come from the SDK's beta channel for now)
 NDK=$(sed -n "s/.*'NDK_VERSION', '\([^']*\)'.*/\1/p" "$STUDIO/build.gradle")
 CMAKE=$(sed -n "s/.*'CMAKE_VERSION', '\([^']*\)'.*/\1/p" "$STUDIO/build.gradle")
-API=36
-TOOLS=36.0.0
+API=$(sed -n "s/.*'COMPILE_API', \([0-9]*\).*/\1/p" "$STUDIO/build.gradle")
+TOOLS=$(sed -n "s/.*'TOOLS_VERSION', '\([^']*\)'.*/\1/p" "$STUDIO/build.gradle")
 SDKMANAGER="$(ls "$SDK"/cmdline-tools/*/bin/sdkmanager | sort | tail -1)"
 yes | "$SDKMANAGER" --licenses >/dev/null || true
-"$SDKMANAGER" "ndk;$NDK" "cmake;$CMAKE" "platforms;android-$API" "build-tools;$TOOLS"
+"$SDKMANAGER" --channel=1 --list 2>/dev/null | grep -E "platforms;android-$API|build-tools;$TOOLS" | head -5 || true
+"$SDKMANAGER" --channel=1 "ndk;$NDK" "cmake;$CMAKE" "platforms;android-$API" "build-tools;$TOOLS"
+test -d "$SDK/platforms/android-$API" || { echo "no platforms;android-$API in the SDK"; ls "$SDK/platforms"; exit 1; }
 
 cd "$STUDIO"
 chmod +x gradlew

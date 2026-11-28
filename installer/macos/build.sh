@@ -11,7 +11,8 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 FREERDP="${2:-$ROOT/artifacts/freerdp-macos}"
 ARCH="${RID#osx-}"
-VERSION="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$ROOT/Directory.Build.props")"
+# a release passes the tag's version (VERSION=1.1.5); otherwise Directory.Build.props
+VERSION="${VERSION:-}"; VERSION="${VERSION#v}"; VERSION="${VERSION:-$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$ROOT/Directory.Build.props")}"
 OUT="$ROOT/artifacts/macos/$RID"
 APP="$OUT/MOAVI Desk.app"
 
@@ -19,7 +20,7 @@ rm -rf "$OUT"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 
 dotnet publish "$ROOT/src/MoaviDesk.Mac/MoaviDesk.Mac.csproj" -c Release -r "$RID" --self-contained \
-  -p:PublishSingleFile=false -o "$APP/Contents/MacOS"
+  -p:PublishSingleFile=false -p:Version="$VERSION" -o "$APP/Contents/MacOS"
 
 if [ -x "$FREERDP/MacOS/sdl3-freerdp" ]; then
   cp "$FREERDP/MacOS/sdl3-freerdp" "$APP/Contents/MacOS/"

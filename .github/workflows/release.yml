@@ -1,7 +1,9 @@
 name: Release
 
-# Push a tag like v0.9.1: builds moavi-desk.exe and the MSI (with virt-viewer) and attaches
-# them to a GitHub release. Nothing is published anywhere else (no WinGet, no AUR).
+# Push a tag like v1.1.5: builds every platform and attaches them to one GitHub release -
+# Windows (MSI with virt-viewer, the single exe), macOS (.dmg for Apple Silicon and Intel), Android (APK).
+# The release notes are docs/release-notes.md (how to install on each OS) followed by GitHub's change list.
+# Nothing is published anywhere else (no WinGet, no App Store, no Play).
 on:
   push:
     tags:
@@ -17,7 +19,7 @@ env:
   VIRT_VIEWER_SHA256: 'B7DE0474E97FE1E81101F2406FCF603FE08666BCB3816C3C465C8D64330BE610'
 
 jobs:
-  release:
+  windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,9 +46,38 @@ jobs:
           ./installer/build.ps1 -Version $version -VirtViewerMsi artifacts/downloads/virt-viewer-x64.msi
           Copy-Item artifacts/publish/win-x64/moavi-desk.exe "artifacts/msi/moavi-desk-$version-win-x64.exe"
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moavi-desk-windows
+          path: |
+            artifacts/msi/*.msi
+            artifacts/msi/*.exe
+          if-no-files-found: error
+
+  # macOS and Android, the version from the tag
+  apps:
+    uses: ./.github/workflows/build-apps.yml
+    with:
+      version: ${{ github.ref_name }}
+    secrets: inherit
+
+  release:
+    needs: [windows, apps]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
       - name: GitHub release
-        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" --title "MOAVI Desk ${{ github.ref_name }}" --generate-notes (Get-ChildItem artifacts/msi/*.msi, artifacts/msi/*.exe).FullName
+          version="${GITHUB_REF_NAME#v}"
+          sed "s/@VERSION@/$version/g" docs/release-notes.md > notes.md
+          ls -la dist
+          gh release create "$GITHUB_REF_NAME" --title "MOAVI Desk $GITHUB_REF_NAME" \
+            --notes-file notes.md --generate-notes dist/*
