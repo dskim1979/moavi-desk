@@ -69,7 +69,7 @@
   <data name="MoaviServer" xml:space="preserve"><value>서버</value></data>
   <data name="MoaviServerWatermark" xml:space="preserve"><value>desk.example.com</value></data>
   <data name="MoaviServerRequired" xml:space="preserve"><value>MOAVI Desk 서버 주소를 입력하세요.</value></data>
-  <data name="MoaviIgnoreCert" xml:space="preserve"><value>서버 인증서 검사 안 함 (테스트 서버 전용)</value></data>
+  <data name="MoaviIgnoreCert" xml:space="preserve"><value>서버 인증서 검사 안 함</value></data>
   <data name="MoaviSignInTitle" xml:space="preserve"><value>내 데스크톱에 로그인</value></data>
   <data name="MoaviErrInvalid" xml:space="preserve"><value>사용자 이름 또는 비밀번호가 틀렸습니다.</value></data>
   <data name="MoaviErrLocked" xml:space="preserve"><value>계정이 잠시 잠겼습니다. 잠시 후 다시 시도하세요.</value></data>

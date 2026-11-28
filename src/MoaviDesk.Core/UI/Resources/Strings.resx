@@ -89,7 +89,7 @@
   <data name="MoaviServer" xml:space="preserve"><value>Server</value></data>
   <data name="MoaviServerWatermark" xml:space="preserve"><value>desk.example.com</value></data>
   <data name="MoaviServerRequired" xml:space="preserve"><value>Enter the MOAVI Desk server address.</value></data>
-  <data name="MoaviIgnoreCert" xml:space="preserve"><value>Accept the server certificate without checking (test servers only)</value></data>
+  <data name="MoaviIgnoreCert" xml:space="preserve"><value>Accept the server certificate without checking</value></data>
   <data name="MoaviSignInTitle" xml:space="preserve"><value>Sign in to your desktop</value></data>
   <data name="MoaviErrInvalid" xml:space="preserve"><value>The username or password is wrong.</value></data>
   <data name="MoaviErrLocked" xml:space="preserve"><value>This account is locked for now. Try again later.</value></data>
