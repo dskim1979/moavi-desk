@@ -303,7 +303,7 @@ static void post_disconnect(freerdp* instance)
 static DWORD verify_certificate(freerdp* instance, const char* host, UINT16 port, const char* cn, const char* subject,
                                 const char* issuer, const char* fingerprint, DWORD flags)
 {
-	return 2;
+	return (flags & VERIFY_CERT_FLAG_CHANGED) ? 0 : 2;
 }
 
 static DWORD verify_changed_certificate(freerdp* instance, const char* host, UINT16 port, const char* cn,
