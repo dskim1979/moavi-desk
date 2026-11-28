@@ -34,9 +34,10 @@ API=$(sed -n "s/.*'COMPILE_API', \([0-9]*\).*/\1/p" "$STUDIO/build.gradle")
 TOOLS=$(sed -n "s/.*'TOOLS_VERSION', '\([^']*\)'.*/\1/p" "$STUDIO/build.gradle")
 SDKMANAGER="$(ls "$SDK"/cmdline-tools/*/bin/sdkmanager | sort | tail -1)"
 yes | "$SDKMANAGER" --licenses >/dev/null || true
-"$SDKMANAGER" --channel=1 --list 2>/dev/null | grep -E "platforms;android-$API|build-tools;$TOOLS" | head -5 || true
-"$SDKMANAGER" --channel=1 "ndk;$NDK" "cmake;$CMAKE" "platforms;android-$API" "build-tools;$TOOLS"
-test -d "$SDK/platforms/android-$API" || { echo "no platforms;android-$API in the SDK"; ls "$SDK/platforms"; exit 1; }
+# the platform is "android-37.0" in the SDK repository (minor versions since API 36)
+PLATFORM=$("$SDKMANAGER" --channel=1 --list 2>/dev/null | grep -oE "platforms;android-$API(\.0)?( |$)" | head -1 | tr -d ' ')
+"$SDKMANAGER" --channel=1 "ndk;$NDK" "cmake;$CMAKE" "${PLATFORM:-platforms;android-$API}" "build-tools;$TOOLS"
+ls "$SDK/platforms"
 
 cd "$STUDIO"
 chmod +x gradlew
