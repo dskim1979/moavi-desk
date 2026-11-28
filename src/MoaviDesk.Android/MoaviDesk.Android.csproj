@@ -40,6 +40,7 @@
     <PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData" />
     <PackageReference Include="Xamarin.AndroidX.Room.Runtime" />
     <PackageReference Include="Xamarin.AndroidX.Sqlite" />
-    <AndroidMavenLibrary Include="net.zetetic:sqlcipher-android" Version="4.17.0" Bind="false" />
+    <!-- its androidx.sqlite comes from Xamarin.AndroidX.Sqlite above (the check cannot read central package versions) -->
+    <AndroidMavenLibrary Include="net.zetetic:sqlcipher-android" Version="4.17.0" Bind="false" VerifyDependencies="false" />
   </ItemGroup>
 </Project>
