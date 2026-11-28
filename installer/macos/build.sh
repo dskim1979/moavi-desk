@@ -26,6 +26,9 @@ if [ -x "$FREERDP/MacOS/sdl-freerdp" ]; then
   cp "$FREERDP/MacOS/sdl-freerdp" "$APP/Contents/MacOS/"
   cp -P "$FREERDP"/Frameworks/*.dylib "$APP/Contents/Frameworks/"
   cp "$FREERDP/FreeRDP-LICENSE.txt" "$APP/Contents/Resources/"
+  # MOAVI Desk's own RDP window (src/MoaviDesk.Mac/MacRdp.cs) on these libraries
+  clang -dynamiclib -arch arm64 -arch x86_64 -mmacosx-version-min=12 -O2 -fvisibility=hidden     -I"$FREERDP/include" "$HERE/moavi-rdp/moavi_rdp.c" -o "$APP/Contents/MacOS/libmoavi-rdp.dylib"     $(for l in freerdp3 freerdp-client3 winpr3; do ls "$APP/Contents/Frameworks"/lib$l.*dylib | head -1; done)     -install_name @rpath/libmoavi-rdp.dylib -Wl,-rpath,@loader_path/../Frameworks
+  otool -L "$APP/Contents/MacOS/libmoavi-rdp.dylib"
 else
   echo "warning: no FreeRDP in $FREERDP - RDP needs 'brew install freerdp' on the Mac"
 fi

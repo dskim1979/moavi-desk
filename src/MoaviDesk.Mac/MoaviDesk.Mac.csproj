@@ -13,6 +13,8 @@
     <UseAppHost>true</UseAppHost>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifiers>osx-arm64;osx-x64</RuntimeIdentifiers>
+    <!-- MacRdp: function pointers for libmoavi-rdp's callbacks -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

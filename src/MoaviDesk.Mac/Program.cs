@@ -17,7 +17,9 @@ internal sealed class Program
         var config = AppConfigManager.Load();
         ApplyLanguage(config.Language);
         Platform.Vault = KeychainVault.Create();
-        Platform.Rdp = FreeRdpClient.Find() is { } freerdp ? new FreeRdpClient(freerdp, config) : null;
+        // MOAVI Desk's own RDP window (libmoavi-rdp), else FreeRDP's window
+        Platform.Rdp = MacRdp.Available() ? new MacRdp(config)
+                     : FreeRdpClient.Find() is { } freerdp ? new FreeRdpClient(freerdp, config) : null;
         return MoaviApp.RunDesktop(AppBuilder.Configure<Application>()
                                              .UsePlatformDetect()
                                              .With(new MacOSPlatformOptions { ShowInDock = true }),
