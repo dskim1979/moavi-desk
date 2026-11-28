@@ -57,6 +57,7 @@ internal static class MainWindow
         // the screen pictures (as the portal card shows them), the selected tile, loans and notices
         var shots = new Dictionary<string, (Bitmap? Image, bool Off)>();
         string? selectedId = null;
+        var armedAt = new Dictionary<string, DateTime>();   // desktop id -> when its sign-in was armed ahead
         var leases = new List<LeaseInfo>();
         var banners = new List<BannerInfo>();
         DateTime? refreshedAt = null;
@@ -398,6 +399,13 @@ internal static class MainWindow
                 return;
             }
             var (stateText, stateColor) = State(d);
+            // 자동 로그인: arm it while the user looks at the desktop, so the connect only checks it
+            if (Running(d) && d.Policy?.DesktopSso == true && d.Protocols.Contains("rdp", StringComparer.OrdinalIgnoreCase)
+                && (!armedAt.TryGetValue(d.Id, out var at) || DateTime.UtcNow - at > TimeSpan.FromMinutes(2)))
+            {
+                armedAt[d.Id] = DateTime.UtcNow;
+                _ = api.ArmSignInAsync(d.Id);
+            }
 
             // the screen, larger
             if (shots.TryGetValue(d.Id, out var shot) && shot.Image is not null)
@@ -737,6 +745,8 @@ internal static class MainWindow
             {
                 if (!btnConnect.IsEnabled) { return; }
                 btnConnect.IsEnabled = false;
+                // RDP: the window opens now and loads while the engine prepares the desktop
+                var early = protocol == "rdp" ? RdpLauncher.Start(d.Name, config.ViewerFullScreen) : null;
                 try
                 {
                     ConnectInfo c;
@@ -751,7 +761,8 @@ internal static class MainWindow
                     }
                     var (error, process) = await Viewer.OpenAsync(api, c, Viewer.FindViewer(config.ViewerPath),
                                                                        d.Name, config.ViewerFullScreen,
-                                                                       config.Devices.GetValueOrDefault(d.Id));
+                                                                       config.Devices.GetValueOrDefault(d.Id), early);
+                    early = null;
                     if (process is null)
                     {
                         Notice(error, Danger);
@@ -772,7 +783,7 @@ internal static class MainWindow
                     };
                 }
                 catch (DeskApiException ex) { Notice(ex.Message, Danger); }
-                finally { btnConnect.IsEnabled = true; }
+                finally { early?.Cancel(); btnConnect.IsEnabled = true; }
             }
             btnConnect.Click += async (_, _) => await Connect();
             if (canOpen) { connectors[d.Id] = Connect; }
