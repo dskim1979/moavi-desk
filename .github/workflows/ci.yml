@@ -6,12 +6,18 @@ on:
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      only:
+        description: 'One platform only (windows, macos, android); empty = all'
+        required: false
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
   build:
+    if: ${{ !inputs.only || inputs.only == 'windows' }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,6 +49,7 @@ jobs:
   # MOAVI Desk.app with FreeRDP (universal, built from source by FreeRDP's macOS script and cached),
   # one .dmg per architecture. Signed ad hoc unless the MACOS_* / APPLE_* secrets are set (installer/macos/build.sh).
   macos:
+    if: ${{ !inputs.only || inputs.only == 'macos' }}
     runs-on: macos-latest
     timeout-minutes: 150
     env:
@@ -57,7 +64,7 @@ jobs:
 
       - name: FreeRDP cache
         id: freerdp
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: artifacts/freerdp-macos
           key: freerdp-macos-${{ env.FREERDP_VERSION }}-${{ hashFiles('installer/macos/build-freerdp.sh') }}
@@ -67,6 +74,14 @@ jobs:
         run: |
           brew install autoconf automake libtool meson ninja nasm
           ./installer/macos/build-freerdp.sh
+
+      # saved at once: the app steps after it may still fail
+      - name: Save FreeRDP
+        if: steps.freerdp.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: artifacts/freerdp-macos
+          key: ${{ steps.freerdp.outputs.cache-primary-key }}
 
       - name: Import signing certificate
         if: env.HAS_MAC_CERT == 'true'
@@ -101,6 +116,7 @@ jobs:
   # The APK (arm64 phones and tablets, x86_64 emulator) with FreeRDP's Android session screen (built from
   # source by FreeRDP's Gradle build and cached). Signed with the debug key unless the ANDROID_* secrets are set.
   android:
+    if: ${{ !inputs.only || inputs.only == 'android' }}
     runs-on: ubuntu-latest
     timeout-minutes: 150
     env:
@@ -119,7 +135,7 @@ jobs:
 
       - name: FreeRDP cache
         id: freerdp
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: artifacts/freerdp-android
           key: freerdp-android-${{ env.FREERDP_VERSION }}-${{ hashFiles('installer/android/build-freerdp.sh') }}
@@ -127,6 +143,13 @@ jobs:
       - name: Build FreeRDP
         if: steps.freerdp.outputs.cache-hit != 'true'
         run: ./installer/android/build-freerdp.sh
+
+      - name: Save FreeRDP
+        if: steps.freerdp.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: artifacts/freerdp-android
+          key: ${{ steps.freerdp.outputs.cache-primary-key }}
 
       - name: .NET for Android
         run: |
