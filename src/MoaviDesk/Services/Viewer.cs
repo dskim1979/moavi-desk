@@ -17,8 +17,8 @@ namespace MoaviDesk.Services;
 /// VNC: the engine hands a console websocket path → bridge it to a local TCP port and point
 /// remote-viewer at that port with a vnc .vv file. The bridge lives until the viewer exits.
 /// RDP: the engine hands an .rdp file → MOAVI Desk's own window with Windows' Remote Desktop control
-/// (RdpWindow; mstsc's engine, so UDP and H.264/AVC when the desktop offers them). A file the control
-/// cannot open (an RD Gateway access token) still goes to mstsc.
+/// (RdpWindow; mstsc's engine, so UDP and H.264/AVC when the desktop offers them) - always, also
+/// through the bundled RD Gateway; Windows' Remote Desktop app is not started.
 /// </summary>
 internal static class Viewer
 {
