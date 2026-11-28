@@ -90,6 +90,9 @@ internal static class Snapshot
             main.Window.Height = 820;
             await Task.Delay(1000);
             Save(main, System.IO.Path.Combine(dir, "main-phone.png"));
+            main.Window.GetLogicalDescendants().OfType<DockPanel>().First(p => p.Name == "DetailSheet").IsVisible = true;
+            await Task.Delay(600);
+            Save(main, System.IO.Path.Combine(dir, "main-phone-detail.png"));
             lifetime.Shutdown();
         };
         lifetime.MainWindow = login.Window;

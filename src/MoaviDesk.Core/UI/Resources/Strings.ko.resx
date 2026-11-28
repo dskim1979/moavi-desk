@@ -210,6 +210,7 @@
   <data name="Folder_project" xml:space="preserve"><value>프로젝트</value></data>
   <data name="Folder_scratch" xml:space="preserve"><value>임시 공간</value></data>
   <data name="PanelDevices" xml:space="preserve"><value>장치</value></data>
+  <data name="BackToList" xml:space="preserve"><value>목록으로</value></data>
   <data name="DeviceUsb" xml:space="preserve"><value>USB 장치</value></data>
   <data name="DeviceDrives" xml:space="preserve"><value>드라이브</value></data>
   <data name="DevicePrinters" xml:space="preserve"><value>프린터</value></data>

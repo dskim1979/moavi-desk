@@ -331,7 +331,36 @@ internal static class MainWindow
             Background = B(Panel),
             BorderBrush = B(Hair),
             BorderThickness = new Thickness(1, 0, 0, 0),
-            Child = new ScrollViewer { Content = new Border { Padding = new Thickness(18, 18, 16, 18), Child = detail } }
+        };
+        var detailScroll = new ScrollViewer { Content = new Border { Padding = new Thickness(18, 18, 16, 18), Child = detail } };
+        detailPane.Child = detailScroll;
+
+        // a phone (or a narrow window): the panel opens over the list when a desktop is tapped - its details,
+        // shared folders, the device choice and the actions - and 목록으로 (or the back button) goes back
+        var sheetBody = new Border();
+        var sheetBack = new Button
+        {
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(6, 6),
+            Content = UiHelper.WithText(AppIcons.Close, L("BackToList"), B(Ink))
+        };
+        var sheet = new DockPanel { Name = "DetailSheet", IsVisible = false, Background = B(Bg) };
+        sheet.Children.Add(Docked(new Border
+        {
+            BorderBrush = B(Hair),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(10, 6),
+            Child = sheetBack
+        }, Dock.Top));
+        sheet.Children.Add(sheetBody);
+        var narrowDetail = false;
+        sheetBack.Click += (_, _) => sheet.IsVisible = false;
+        window.OnBack = () =>
+        {
+            if (!sheet.IsVisible) { return false; }
+            sheet.IsVisible = false;
+            return true;
         };
 
         var body = new DockPanel();
@@ -343,14 +372,17 @@ internal static class MainWindow
         root.Children.Add(Docked(infoBar, Dock.Top));
         root.Children.Add(Docked(statusBar, Dock.Bottom));
         root.Children.Add(body);
-        window.Content = root;
+        window.Content = new Grid { Children = { root, sheet } };
 
         // a phone (Android) or a narrow window: the desktops alone - no filter rail, no detail panel
         root.SizeChanged += (_, e) =>
         {
             var narrow = e.NewSize.Width < 760;
             rail.IsVisible = !narrow;
-            detailPane.IsVisible = e.NewSize.Width >= 1000;
+            narrowDetail = e.NewSize.Width < 1000;
+            detailPane.IsVisible = !narrowDetail;
+            if (narrowDetail && detailScroll.Parent == detailPane) { detailPane.Child = null; sheetBody.Child = detailScroll; }
+            if (!narrowDetail && detailScroll.Parent == sheetBody) { sheetBody.Child = null; detailPane.Child = detailScroll; sheet.IsVisible = false; }
             hostText.IsVisible = !narrow;
             search.IsVisible = e.NewSize.Width >= 560;
             search.Width = Math.Clamp(e.NewSize.Width - 340, 160, 320);
@@ -993,7 +1025,11 @@ internal static class MainWindow
             if (selected) { tile.BorderBrush = B(Action); tile.BorderThickness = new Thickness(2); tile.Margin = new Thickness(-1, -1, 11, 11); }
             tile.PointerEntered += (_, _) => { if (!selected) { tile.BorderBrush = B(Color.Parse("#9FB2CB")); } };
             tile.PointerExited += (_, _) => { if (!selected) { tile.BorderBrush = B(Hair); } };
-            tile.Tapped += (_, _) => { if (selectedId != d.Id) { selectedId = d.Id; Render(); } };
+            tile.Tapped += (_, _) =>
+            {
+                if (selectedId != d.Id) { selectedId = d.Id; Render(); }
+                if (narrowDetail) { sheet.IsVisible = true; }
+            };
             tile.DoubleTapped += async (_, _) => await Connect();
             return tile;
         }

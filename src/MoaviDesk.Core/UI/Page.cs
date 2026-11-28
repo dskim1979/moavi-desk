@@ -45,6 +45,9 @@ internal sealed class Page
         };
     }
 
+    /// <summary>The back button (Android) first asks the page: true = it closed something of its own.</summary>
+    public Func<bool>? OnBack { get; set; }
+
     public event EventHandler? Opened;
     public event EventHandler<PageClosingEventArgs>? Closing;
     public event EventHandler? Closed;
@@ -139,7 +142,9 @@ internal sealed class PageStack : Grid
             {
                 top.BackRequested += (_, e) =>
                 {
-                    if (Top is { } p) { e.Handled = true; p.Close(); }
+                    if (Top is not { } p) { return; }
+                    e.Handled = true;
+                    if (p.OnBack?.Invoke() != true) { p.Close(); }
                 };
             }
         };
