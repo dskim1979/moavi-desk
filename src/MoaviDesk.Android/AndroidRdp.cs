@@ -43,7 +43,8 @@ internal sealed class AndroidRdp(AppConfig config) : IRdpClient
             // text is not tiny on a high-resolution tablet
             var m = activity.Resources!.DisplayMetrics!;
             var scale = Math.Clamp((int)Math.Round(m.Density * 100 / 25.0) * 25, 100, 300);
-            options.Add(("size", $"{m.WidthPixels & ~1}x{m.HeightPixels - (int)(56 * m.Density)}"));   // less the bar
+            var (w, h) = Usable(activity, m.Density);
+            options.Add(("size", $"{w & ~1}x{h}"));
             options.Add(("scale-desktop", scale.ToString(System.Globalization.CultureInfo.InvariantCulture)));
             var address = options.First(o => o.Name == "v").Value;
             var query = string.Join('&', options.Where(o => o.Name != "v")
@@ -65,6 +66,23 @@ internal sealed class AndroidRdp(AppConfig config) : IRdpClient
             return Task.FromResult<(string, RemoteSession?)>((string.Empty, session));
         }
         catch (Exception ex) { return Task.FromResult<(string, RemoteSession?)>((ex.Message, null)); }
+    }
+
+    /// <summary>The screen the desktop gets: the window less the status bar, the navigation bar (and a display
+    /// cut-out) and MOAVI Desk's bar (MoaviBar, 56 dp), so nothing of the desktop hides behind them.</summary>
+    private static (int W, int H) Usable(Activity activity, float density)
+    {
+        var bar = (int)(56 * density);
+        if (OperatingSystem.IsAndroidVersionAtLeast(30) && activity.WindowManager?.CurrentWindowMetrics is { } wm)
+        {
+            var b = wm.Bounds;
+            var i = wm.WindowInsets.GetInsetsIgnoringVisibility(Android.Views.WindowInsets.Type.SystemBars()
+                                                                | Android.Views.WindowInsets.Type.DisplayCutout());
+            return (b.Width() - i.Left - i.Right, b.Height() - i.Top - i.Bottom - bar);
+        }
+        // Android 10: the display's size less the usual status bar (24 dp) and navigation bar (48 dp)
+        var m = activity.Resources!.DisplayMetrics!;
+        return (m.WidthPixels, m.HeightPixels - (int)(72 * density) - bar);
     }
 
     /// <summary>
