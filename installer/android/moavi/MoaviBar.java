@@ -18,6 +18,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.RelativeLayout;
@@ -62,7 +63,20 @@ public final class MoaviBar
 		name.setTypeface(Typeface.DEFAULT_BOLD);
 		name.setSingleLine(true);
 		name.setEllipsize(android.text.TextUtils.TruncateAt.END);
-		bar.addView(name, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+		// the name: at most a third of the screen; the buttons get the rest and scroll when they need more
+		name.setMaxWidth(activity.getResources().getDisplayMetrics().widthPixels / 3);
+		bar.addView(name, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+		// the buttons scroll sideways on a narrow screen; 연결 끊기 stays at the right edge
+		LinearLayout buttons = new LinearLayout(activity);
+		buttons.setOrientation(LinearLayout.HORIZONTAL);
+		HorizontalScrollView scroller = new HorizontalScrollView(activity);
+		scroller.setHorizontalScrollBarEnabled(false);
+		scroller.addView(buttons);
+		buttons.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+		scroller.setFillViewport(true);
+		LinearLayout.LayoutParams sp0 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+		bar.addView(scroller, sp0);
 
 		final Button devicesButton = button(activity, labels[0]);
 		devicesButton.setOnClickListener(v -> {
@@ -72,11 +86,11 @@ public final class MoaviBar
 					menu.getMenu().add(line).setEnabled(false);
 			menu.show();
 		});
-		bar.addView(devicesButton);
+		buttons.addView(devicesButton);
 
 		Button keyboard = button(activity, labels[1]);
 		keyboard.setOnClickListener(v -> activity.moaviToggleKeyboard());
-		bar.addView(keyboard);
+		buttons.addView(keyboard);
 
 		Button hangul = button(activity, labels[2]);
 		hangul.setOnClickListener(v -> {
@@ -86,7 +100,7 @@ public final class MoaviBar
 			LibFreeRDP.sendKeyEvent(inst, VK_HANGUL, true);
 			LibFreeRDP.sendKeyEvent(inst, VK_HANGUL, false);
 		});
-		bar.addView(hangul);
+		buttons.addView(hangul);
 
 		Button cad = button(activity, labels[3]);
 		cad.setOnClickListener(v -> {
@@ -100,7 +114,7 @@ public final class MoaviBar
 			LibFreeRDP.sendKeyEvent(inst, VK_MENU, false);
 			LibFreeRDP.sendKeyEvent(inst, VK_CONTROL, false);
 		});
-		bar.addView(cad);
+		buttons.addView(cad);
 
 		Button disconnect = button(activity, labels[4]);
 		disconnect.setBackgroundColor(Color.parseColor("#0E7C6B"));

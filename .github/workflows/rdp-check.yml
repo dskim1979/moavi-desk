@@ -59,6 +59,8 @@ jobs:
 
       - name: libmoavi-rdp against xrdp
         run: |
+          # what the cached FreeRDP links to
+          sudo apt-get update -q && sudo apt-get install -y -q libcjson-dev liburiparser-dev libssl-dev zlib1g-dev
           P="$PWD/artifacts/freerdp-linux"
           gcc -shared -fPIC -O2 -fvisibility=hidden -I"$P/include/freerdp3" -I"$P/include/winpr3" \
             installer/macos/moavi-rdp/moavi_rdp.c -o artifacts/libmoavi-rdp.so \
