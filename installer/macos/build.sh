@@ -22,8 +22,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Framewor
 dotnet publish "$ROOT/src/MoaviDesk.Mac/MoaviDesk.Mac.csproj" -c Release -r "$RID" --self-contained \
   -p:PublishSingleFile=false -p:Version="$VERSION" -o "$APP/Contents/MacOS"
 
-if [ -x "$FREERDP/MacOS/sdl3-freerdp" ]; then
-  cp "$FREERDP/MacOS/sdl3-freerdp" "$APP/Contents/MacOS/"
+if [ -x "$FREERDP/MacOS/sdl-freerdp" ]; then
+  cp "$FREERDP/MacOS/sdl-freerdp" "$APP/Contents/MacOS/"
   cp -P "$FREERDP"/Frameworks/*.dylib "$APP/Contents/Frameworks/"
   cp "$FREERDP/FreeRDP-LICENSE.txt" "$APP/Contents/Resources/"
 else

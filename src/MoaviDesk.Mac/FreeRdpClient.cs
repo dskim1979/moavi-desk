@@ -9,7 +9,7 @@ using MoaviDesk.Config;
 namespace MoaviDesk.Services;
 
 /// <summary>
-/// macOS: a desktop in FreeRDP's own window (sdl3-freerdp, bundled in MOAVI Desk.app by installer/macos/build.sh).
+/// macOS: a desktop in FreeRDP's own window (sdl-freerdp (FreeRDP's SDL3 client), bundled in MOAVI Desk.app by installer/macos/build.sh).
 /// The options go in through stdin (/args-from:stdin), so the password, the gateway token and the Warpgate ticket
 /// are never on a command line other processes can read. One process per desktop; closing its window ends it.
 /// </summary>
