@@ -214,7 +214,7 @@
   <data name="VncKeyboard" xml:space="preserve"><value>키보드</value></data>
   <data name="VncClose" xml:space="preserve"><value>닫기</value></data>
   <data name="RdpDevHome" xml:space="preserve"><value>홈 폴더</value></data>
-  <data name="RdpDevNextTime" xml:space="preserve"><value>바꾸려면 목록의 세부 패널에서 고친 뒤 다시 접속하세요</value></data>
+  <data name="RdpDevPhone" xml:space="preserve"><value>휴대폰 저장소</value></data>
   <data name="RdpDevPrinterList" xml:space="preserve"><value>프린터</value></data>
   <data name="RdpDevClipboardItem" xml:space="preserve"><value>클립보드</value></data>
   <data name="RdpDevPolicy" xml:space="preserve"><value>흐린 항목은 풀 정책에서 막혀 있습니다</value></data>

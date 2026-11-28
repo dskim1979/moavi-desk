@@ -34,7 +34,11 @@ internal sealed class AndroidRdp(AppConfig config) : IRdpClient
         {
             if (AndroidHost.Main is not { } activity) { return Task.FromResult<(string, RemoteSession?)>((L("ViewerLaunchFailed"), null)); }
             Prepare(activity);
-            var options = FreeRdpArgs.Build(rdp, title, fullScreen, password, config, phone: true);
+            // the phone's storage and the clipboard go through the bar's 장치 menu (MoaviBar.java); the clipboard
+            // channel is there whenever the pool allows it
+            var options = FreeRdpArgs.Build(rdp, title, fullScreen, password, config, phone: true)
+                                     .Where(o => o.Name is not ("drive" or "clipboard")).ToList();
+            options.Add(("clipboard", allowed.Clipboard ? "+" : "-"));
             var address = options.First(o => o.Name == "v").Value;
             var query = string.Join('&', options.Where(o => o.Name != "v")
                                                 .Select(o => $"{Uri.EscapeDataString(o.Name)}={Uri.EscapeDataString(o.Value)}"));
@@ -43,16 +47,12 @@ internal sealed class AndroidRdp(AppConfig config) : IRdpClient
             // MOAVI Desk's bar on the session screen (installer/android/moavi/MoaviBar.java)
             var s = Viewer.ParseRdp(rdp);
             bool On(string key, bool fallback = false) => s.TryGetValue(key, out var v) ? v.Trim() == "1" : fallback;
-            string State(bool on, bool allowedHere) => L(on && allowedHere ? "RdpDevOn" : "RdpDevOff");
             var drives = (s.TryGetValue("drivestoredirect", out var d) && d.Trim().Length > 0) || On("redirectdrives");
             intent.PutExtra("moavi.title", title);
             intent.PutExtra("moavi.labels", new[] { L("RdpDevices"), L("VncKeyboard"), "한/영", L("RdpCtrlAltDel"), L("RdpDisconnect") });
-            intent.PutExtra("moavi.devices", new[]
-            {
-                $"{L("RdpDevDrives")}: {State(drives, allowed.Drives)}",
-                string.Format(L("RdpDevClipboard"), State(On("redirectclipboard", true), allowed.Clipboard)),
-                L("RdpDevNextTime"),
-            });
+            intent.PutExtra("moavi.devlabels", new[] { L("RdpDevPhone"), L("RdpDevClipboardItem"), L("RdpDevPolicy") });
+            intent.PutExtra("moavi.allow", new[] { allowed.Drives, allowed.Clipboard });
+            intent.PutExtra("moavi.on", new[] { drives, On("redirectclipboard", true) });
             var session = new Session();
             AndroidHost.Waiting.Enqueue(session);
             activity.StartActivity(intent);

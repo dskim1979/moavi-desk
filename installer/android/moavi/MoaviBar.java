@@ -5,8 +5,9 @@
  * MOAVI Desk's bar on FreeRDP's Android session screen, as on the Windows and macOS windows: the desktop's name,
  * 장치, 키보드, 한/영, Ctrl+Alt+Del, 연결 끊기. installer/android/build-freerdp.sh adds this file to freeRDPCore
  * and hooks it into SessionActivity (MoaviBar.attach after the views are set up). The labels and the device
- * lines come from MOAVI Desk in the intent (moavi.title, moavi.labels, moavi.devices); without them (FreeRDP opened
- * some other way) there is no bar.
+ * choices come from MOAVI Desk in the intent (moavi.title, moavi.labels, moavi.devlabels, moavi.allow, moavi.on);
+ * without them (FreeRDP opened some other way) there is no bar. 장치 switches the phone's storage (a drive, through
+ * moavi_android.c and the device channel) and the clipboard during the session, as far as the pool allows them.
  */
 package com.freerdp.freerdpcore.presentation;
 
@@ -30,6 +31,14 @@ import com.freerdp.freerdpcore.services.LibFreeRDP;
 public final class MoaviBar
 {
 	private static final int VK_CONTROL = 0x11, VK_MENU = 0x12, VK_DELETE = 0x2E, VK_HANGUL = 0x15;
+	private static final int PHONE_DRIVE = 1;
+
+	/** The 장치 menu's clipboard switch (SessionActivity checks it both ways). */
+	public static volatile boolean clipboardOn = true;
+	private static boolean driveOn;
+
+	/** moavi_android.c: the phone's storage as a drive of the session (instance 0 = the one about to connect). */
+	static native void drive(long instance, int token, String name, String path, boolean on);
 
 	private MoaviBar()
 	{
@@ -40,9 +49,19 @@ public final class MoaviBar
 		Intent intent = activity.getIntent();
 		String title = intent.getStringExtra("moavi.title");
 		String[] labels = intent.getStringArrayExtra("moavi.labels");
-		final String[] devices = intent.getStringArrayExtra("moavi.devices");
-		if (title == null || labels == null || labels.length < 5)
+		final String[] devLabels = intent.getStringArrayExtra("moavi.devlabels");
+		final boolean[] allow = intent.getBooleanArrayExtra("moavi.allow");
+		final boolean[] on = intent.getBooleanArrayExtra("moavi.on");
+		if (title == null || labels == null || labels.length < 5 || devLabels == null || devLabels.length < 3 || allow == null ||
+		    allow.length < 2 || on == null || on.length < 2)
 			return;
+
+		// what this connection starts with: the phone's storage waits for the device channel
+		final String storage = android.os.Environment.getExternalStorageDirectory().getPath();
+		clipboardOn = allow[1] && on[1];
+		driveOn = allow[0] && on[0];
+		if (driveOn)
+			drive(0, PHONE_DRIVE, "Phone", storage, true);
 
 		RelativeLayout root = activity.findViewById(R.id.session_root_view);
 		View scroll = activity.findViewById(R.id.sessionScrollView);
@@ -81,9 +100,22 @@ public final class MoaviBar
 		final Button devicesButton = button(activity, labels[0]);
 		devicesButton.setOnClickListener(v -> {
 			PopupMenu menu = new PopupMenu(activity, devicesButton);
-			if (devices != null)
-				for (String line : devices)
-					menu.getMenu().add(line).setEnabled(false);
+			android.view.MenuItem phone = menu.getMenu().add(0, 1, 0, devLabels[0]);
+			phone.setCheckable(true).setChecked(driveOn).setEnabled(allow[0]);
+			android.view.MenuItem clip = menu.getMenu().add(0, 2, 1, devLabels[1]);
+			clip.setCheckable(true).setChecked(clipboardOn).setEnabled(allow[1]);
+			if (!allow[0] || !allow[1])
+				menu.getMenu().add(0, 3, 2, devLabels[2]).setEnabled(false);
+			menu.setOnMenuItemClickListener(item -> {
+				if (item.getItemId() == 1)
+				{
+					driveOn = !driveOn;
+					drive(activity.moaviInstance(), PHONE_DRIVE, "Phone", storage, driveOn);
+				}
+				else if (item.getItemId() == 2)
+					clipboardOn = !clipboardOn;
+				return true;
+			});
 			menu.show();
 		});
 		buttons.addView(devicesButton);
