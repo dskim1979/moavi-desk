@@ -33,7 +33,7 @@ internal sealed class FreeRdpClient(string path, AppConfig config) : IRdpClient
 
     public IEarlyRdp? Start(string title, bool fullScreen) => null;
 
-    public async Task<(string Error, RemoteSession? Session)> OpenAsync(string rdp, string title, bool fullScreen, string? password)
+    public async Task<(string Error, RemoteSession? Session)> OpenAsync(string rdp, string title, bool fullScreen, string? password, DevicePolicy allowed)
     {
         var args = FreeRdpArgs.ToArgs(FreeRdpArgs.Build(rdp, title, fullScreen, password, config)).ToList();
         var psi = new ProcessStartInfo(path)

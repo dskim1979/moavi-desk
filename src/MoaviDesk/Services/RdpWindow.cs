@@ -612,7 +612,7 @@ internal sealed class WindowsRdp : IRdpClient
 {
     public IEarlyRdp? Start(string title, bool fullScreen) => RdpLauncher.Start(title, fullScreen);
 
-    public Task<(string Error, RemoteSession? Session)> OpenAsync(string rdp, string title, bool fullScreen, string? password)
+    public Task<(string Error, RemoteSession? Session)> OpenAsync(string rdp, string title, bool fullScreen, string? password, DevicePolicy allowed)
     {
         var (embedded, error, process) = RdpLauncher.Open(rdp, title, fullScreen, password);
         if (!embedded) { (error, process) = OpenMstsc(rdp); }

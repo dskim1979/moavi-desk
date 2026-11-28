@@ -22,6 +22,8 @@
 #include <freerdp/client/channels.h>
 #include <freerdp/client/cliprdr.h>
 #include <freerdp/client/disp.h>
+#include <freerdp/client/rdpdr.h>
+#include <freerdp/channels/rdpdr.h>
 #include <freerdp/gdi/gdi.h>
 #include <freerdp/channels/channels.h>
 #include <freerdp/event.h>
@@ -46,6 +48,18 @@ typedef struct
 	CRITICAL_SECTION lock;
 	char* local_text;        /* this Mac's clipboard, offered to the desktop */
 	BOOL remote_has_text;
+	BOOL clip_on;            /* the 장치 menu's clipboard switch (the channel stays, nothing goes through when off) */
+	RdpdrClientContext* rdpdr;
+	struct
+	{
+		int token;           /* the C# side's key */
+		UINT32 type;
+		char* name;
+		char* path;
+		uint32_t id;         /* rdpdr's, once registered */
+		BOOL registered;
+	} dev[64];
+	int ndev;
 } moavi_context;
 
 static moavi_context* M(rdpContext* c) { return (moavi_context*)c; }
@@ -56,7 +70,7 @@ static UINT clip_send_format_list(moavi_context* m)
 	CLIPRDR_FORMAT fmt = { CF_UNICODETEXT, NULL };
 	CLIPRDR_FORMAT_LIST list = { 0 };
 	list.common.msgType = CB_FORMAT_LIST;
-	list.numFormats = 1;
+	list.numFormats = m->clip_on && m->local_text ? 1 : 0;
 	list.formats = &fmt;
 	return m->cliprdr->ClientFormatList(m->cliprdr, &list);
 }
@@ -95,7 +109,7 @@ static UINT clip_server_format_list(CliprdrClientContext* ctx, const CLIPRDR_FOR
 	resp.common.msgFlags = CB_RESPONSE_OK;
 	UINT rc = ctx->ClientFormatListResponse(ctx, &resp);
 	m->remote_has_text = text;
-	if (text)
+	if (text && m->clip_on)
 	{
 		/* the desktop copied text: fetch it at once so this Mac's clipboard has it */
 		CLIPRDR_FORMAT_DATA_REQUEST req = { 0 };
@@ -119,7 +133,7 @@ static UINT clip_server_data_request(CliprdrClientContext* ctx, const CLIPRDR_FO
 	WCHAR* wide = NULL;
 	size_t chars = 0;
 	EnterCriticalSection(&m->lock);
-	if (req->requestedFormatId == CF_UNICODETEXT && m->local_text)
+	if (req->requestedFormatId == CF_UNICODETEXT && m->local_text && m->clip_on)
 		wide = ConvertUtf8ToWCharAlloc(m->local_text, &chars);
 	LeaveCriticalSection(&m->lock);
 	if (wide)
@@ -138,7 +152,7 @@ static UINT clip_server_data_request(CliprdrClientContext* ctx, const CLIPRDR_FO
 static UINT clip_server_data_response(CliprdrClientContext* ctx, const CLIPRDR_FORMAT_DATA_RESPONSE* resp)
 {
 	moavi_context* m = (moavi_context*)ctx->custom;
-	if (resp->common.msgFlags != CB_RESPONSE_OK || !resp->requestedFormatData || resp->common.dataLen < 2)
+	if (!m->clip_on || resp->common.msgFlags != CB_RESPONSE_OK || !resp->requestedFormatData || resp->common.dataLen < 2)
 		return CHANNEL_RC_OK;
 	char* utf8 = ConvertWCharNToUtf8Alloc((const WCHAR*)resp->requestedFormatData, resp->common.dataLen / sizeof(WCHAR), NULL);
 	if (utf8)
@@ -148,6 +162,32 @@ static UINT clip_server_data_response(CliprdrClientContext* ctx, const CLIPRDR_F
 		free(utf8);
 	}
 	return CHANNEL_RC_OK;
+}
+
+/* --- devices (drives, printers) added and taken away during the session ----------------------------- */
+static void dev_register(moavi_context* m, int i)
+{
+	if (!m->rdpdr || m->dev[i].registered)
+		return;
+	const char* args[2] = { m->dev[i].name, m->dev[i].path ? m->dev[i].path : "" };
+	RDPDR_DEVICE* d = freerdp_device_new(m->dev[i].type, m->dev[i].type == RDPDR_DTYP_FILESYSTEM ? 2 : 1, args);
+	if (!d)
+		return;
+	uint32_t id = 0;
+	if (m->rdpdr->RdpdrRegisterDevice(m->rdpdr, d, &id) == CHANNEL_RC_OK)
+	{
+		m->dev[i].id = id;
+		m->dev[i].registered = TRUE;
+	}
+	freerdp_device_free(d);
+}
+
+static void dev_register_all(moavi_context* m)
+{
+	EnterCriticalSection(&m->lock);
+	for (int i = 0; i < m->ndev; i++)
+		dev_register(m, i);
+	LeaveCriticalSection(&m->lock);
 }
 
 static void on_channel_connected(void* context, const ChannelConnectedEventArgs* e)
@@ -167,6 +207,11 @@ static void on_channel_connected(void* context, const ChannelConnectedEventArgs*
 	}
 	else if (strcmp(e->name, DISP_DVC_CHANNEL_NAME) == 0)
 		m->disp = (DispClientContext*)e->pInterface;
+	else if (strcmp(e->name, RDPDR_SVC_CHANNEL_NAME) == 0)
+	{
+		m->rdpdr = (RdpdrClientContext*)e->pInterface;
+		dev_register_all(m);
+	}
 	else
 		freerdp_client_OnChannelConnectedEventHandler(context, e);
 }
@@ -178,6 +223,8 @@ static void on_channel_disconnected(void* context, const ChannelDisconnectedEven
 		m->cliprdr = NULL;
 	else if (strcmp(e->name, DISP_DVC_CHANNEL_NAME) == 0)
 		m->disp = NULL;
+	else if (strcmp(e->name, RDPDR_SVC_CHANNEL_NAME) == 0)
+		m->rdpdr = NULL;
 	else
 		freerdp_client_OnChannelDisconnectedEventHandler(context, e);
 }
@@ -283,6 +330,11 @@ static void client_free(freerdp* instance, rdpContext* context)
 {
 	moavi_context* m = M(context);
 	free(m->local_text);
+	for (int i = 0; i < m->ndev; i++)
+	{
+		free(m->dev[i].name);
+		free(m->dev[i].path);
+	}
 	DeleteCriticalSection(&m->lock);
 }
 
@@ -305,7 +357,14 @@ EXPORT void* moavi_rdp_new(int argc, char** argv, moavi_frame_cb frame, moavi_si
 	m->clip = clip;
 	m->state = state;
 	m->user = user;
+	m->clip_on = TRUE;
 	if (freerdp_client_settings_parse_command_line(context->settings, argc, argv, FALSE) != 0)
+	{
+		freerdp_client_context_free(context);
+		return NULL;
+	}
+	/* the device channel always, so the 장치 menu can add a drive or a printer during the session */
+	if (!freerdp_settings_set_bool(context->settings, FreeRDP_DeviceRedirection, TRUE))
 	{
 		freerdp_client_context_free(context);
 		return NULL;
@@ -404,6 +463,52 @@ EXPORT void moavi_rdp_resize(void* handle, int width, int height, int scale)
 	layout.DesktopScaleFactor = (UINT32)scale;
 	layout.DeviceScaleFactor = scale >= 200 ? 180 : 100;
 	m->disp->SendMonitorLayout(m->disp, 1, &layout);
+}
+
+/* a drive (name, a folder of this Mac) or a printer (its CUPS name) for the desktop; on = FALSE takes it away.
+ * Before the device channel is up the device waits and goes in the first device list. */
+EXPORT void moavi_rdp_device(void* handle, int token, int printer, const char* name, const char* path, int on)
+{
+	moavi_context* m = M((rdpContext*)handle);
+	EnterCriticalSection(&m->lock);
+	int i = 0;
+	while (i < m->ndev && m->dev[i].token != token)
+		i++;
+	if (on)
+	{
+		if (i == m->ndev && m->ndev < 64)
+		{
+			m->dev[i].token = token;
+			m->dev[i].type = printer ? RDPDR_DTYP_PRINT : RDPDR_DTYP_FILESYSTEM;
+			m->dev[i].name = _strdup(name);
+			m->dev[i].path = path ? _strdup(path) : NULL;
+			m->dev[i].registered = FALSE;
+			m->ndev++;
+		}
+		if (i < m->ndev)
+			dev_register(m, i);
+	}
+	else if (i < m->ndev)
+	{
+		if (m->dev[i].registered && m->rdpdr)
+		{
+			const uint32_t ids[1] = { m->dev[i].id };
+			m->rdpdr->RdpdrUnregisterDevice(m->rdpdr, 1, ids);
+		}
+		free(m->dev[i].name);
+		free(m->dev[i].path);
+		m->dev[i] = m->dev[m->ndev - 1];
+		m->ndev--;
+	}
+	LeaveCriticalSection(&m->lock);
+}
+
+EXPORT void moavi_rdp_clipboard_on(void* handle, int on)
+{
+	moavi_context* m = M((rdpContext*)handle);
+	m->clip_on = on ? TRUE : FALSE;
+	if (m->cliprdr)
+		clip_send_format_list(m);
 }
 
 EXPORT void moavi_rdp_disconnect(void* handle)

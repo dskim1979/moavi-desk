@@ -57,8 +57,21 @@ internal interface IRdpClient
     IEarlyRdp? Start(string title, bool fullScreen);
 
     /// <summary>Opens the .rdp (gateway token, Warpgate ticket and devices already in it).
-    /// password: the user's MOAVI Desk password for the desktop's Windows logon, or null.</summary>
-    Task<(string Error, RemoteSession? Session)> OpenAsync(string rdp, string title, bool fullScreen, string? password);
+    /// password: the user's MOAVI Desk password for the desktop's Windows logon, or null.
+    /// allowed: what the pool lets this connection share (the 장치 menu can switch only these during the session).</summary>
+    Task<(string Error, RemoteSession? Session)> OpenAsync(string rdp, string title, bool fullScreen, string? password, DevicePolicy allowed);
+}
+
+/// <summary>What the pool lets a connection share - read from the engine's .rdp before the user's choice.</summary>
+internal sealed record DevicePolicy(bool Drives, bool Printers, bool Clipboard)
+{
+    public static DevicePolicy Of(string rdp)
+    {
+        var s = Viewer.ParseRdp(rdp);
+        bool On(string key, bool fallback = false) => s.TryGetValue(key, out var v) ? v.Trim() == "1" : fallback;
+        return new((s.TryGetValue("drivestoredirect", out var d) && d.Trim().Length > 0) || On("redirectdrives"),
+                   On("redirectprinters"), On("redirectclipboard", true));
+    }
 }
 
 /// <summary>What the running app can do; each platform app fills it in before the first page.</summary>

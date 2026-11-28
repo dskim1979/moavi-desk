@@ -34,13 +34,17 @@ internal sealed class MacRdp(AppConfig config) : IRdpClient
 
     public IEarlyRdp? Start(string title, bool fullScreen) => null;
 
-    public Task<(string Error, RemoteSession? Session)> OpenAsync(string rdp, string title, bool fullScreen, string? password)
+    public Task<(string Error, RemoteSession? Session)> OpenAsync(string rdp, string title, bool fullScreen, string? password, DevicePolicy allowed)
     {
-        var options = FreeRdpArgs.Build(rdp, title, false, password, config).Where(o => o.Name is not ("f" or "t")).ToList();
+        // drives, printers and the clipboard go through the 장치 menu (libmoavi-rdp adds and takes them away live);
+        // the clipboard channel is there whenever the pool allows it
+        var options = FreeRdpArgs.Build(rdp, title, false, password, config)
+                                 .Where(o => o.Name is not ("f" or "t" or "home-drive" or "printer" or "clipboard" or "drive")).ToList();
+        options.Add(("clipboard", allowed.Clipboard ? "+" : "-"));
         // a Korean keyboard (type 8): the desktop takes 0x72 / 0x71 as 한/영 and 한자
         if (System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ko") { options.Add(("kbd", "layout:0x412,type:8,subtype:3")); }
         var settings = Viewer.ParseRdp(rdp);
-        var view = new RdpSession(title, fullScreen, FreeRdpArgs.ToArgs(options).ToList(), settings);
+        var view = new RdpSession(title, fullScreen, FreeRdpArgs.ToArgs(options).ToList(), settings, allowed);
         return Task.FromResult<(string, RemoteSession?)>((string.Empty, view));
     }
 
@@ -56,6 +60,8 @@ internal sealed class MacRdp(AppConfig config) : IRdpClient
     [DllImport(Lib)] private static extern void moavi_rdp_clipboard(IntPtr h, IntPtr utf8);
     [DllImport(Lib)] private static extern void moavi_rdp_resize(IntPtr h, int width, int height, int scale);
     [DllImport(Lib)] private static extern void moavi_rdp_disconnect(IntPtr h);
+    [DllImport(Lib)] private static extern void moavi_rdp_device(IntPtr h, int token, int printer, IntPtr name, IntPtr path, int on);
+    [DllImport(Lib)] private static extern void moavi_rdp_clipboard_on(IntPtr h, int on);
     [DllImport(Lib)] private static extern void moavi_rdp_free(IntPtr h);
 
     [UnmanagedCallersOnly] private static void OnFrame(IntPtr user, int x, int y, int w, int h) => Of(user)?.Frame();
@@ -71,6 +77,9 @@ internal sealed class MacRdp(AppConfig config) : IRdpClient
         private readonly Image _image = new() { Stretch = Stretch.Uniform };
         private readonly TextBlock _status = new() { Foreground = B(Color.Parse("#9CA3AF")), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0) };
         private readonly Dictionary<string, string> _settings;
+        private readonly DevicePolicy _allowed;
+        private readonly HashSet<string> _shared = [];   // "drive:<path>" / "printer:<name>" now shared
+        private bool _clipOn;
         private WriteableBitmap? _bitmap;
         private IntPtr _h;
         private GCHandle _self;
@@ -82,9 +91,10 @@ internal sealed class MacRdp(AppConfig config) : IRdpClient
 
         public override bool HasExited => _ended;
 
-        public RdpSession(string title, bool fullScreen, List<string> args, Dictionary<string, string> settings)
+        public RdpSession(string title, bool fullScreen, List<string> args, Dictionary<string, string> settings, DevicePolicy allowed)
         {
             _settings = settings;
+            _allowed = allowed;
             _page = new Page
             {
                 Title = $"{title} · MOAVI Desk",
@@ -184,6 +194,7 @@ internal sealed class MacRdp(AppConfig config) : IRdpClient
             foreach (var s in strings) { Marshal.FreeCoTaskMem(s); }
             Marshal.FreeCoTaskMem(argv);
             if (_h == IntPtr.Zero) { State(2, L("RdpFailed")); return; }
+            InitialDevices();
             var h = _h;
             new Thread(() =>
             {
@@ -337,20 +348,116 @@ internal sealed class MacRdp(AppConfig config) : IRdpClient
             _resize.Start();
         }
 
-        /// <summary>장치: what this connection shares (the pool's policy and the panel's choice).</summary>
-        private MenuFlyout DeviceMenu()
+        // --- 장치: drives (the home folder, USB storage under /Volumes), printers, the clipboard -------------
+        private void InitialDevices()
         {
             bool On(string key, bool fallback = false) => _settings.TryGetValue(key, out var v) ? v.Trim() == "1" : fallback;
-            var drives = (_settings.TryGetValue("drivestoredirect", out var d) && d.Trim().Length > 0) || On("redirectdrives");
+            // what the panel's choice left in the .rdp: all drives as on Windows (drivestoredirect:s:*), all printers
+            if (_allowed.Drives && ((_settings.TryGetValue("drivestoredirect", out var d) && d.Trim().Length > 0) || On("redirectdrives")))
+            {
+                foreach (var (name, path) in Drives()) { Share(true, false, name, path); }
+            }
+            if (_allowed.Printers && On("redirectprinters"))
+            {
+                foreach (var name in Printers()) { Share(true, true, name, null); }
+            }
+            _clipOn = _allowed.Clipboard && On("redirectclipboard", true);
+            moavi_rdp_clipboard_on(_h, _clipOn ? 1 : 0);
+        }
+
+        private void Share(bool on, bool printer, string name, string? path)
+        {
+            if (_h == IntPtr.Zero) { return; }
+            var key = printer ? "printer:" + name : "drive:" + path;
+            var n = Marshal.StringToCoTaskMemUTF8(name);
+            var p = path is null ? IntPtr.Zero : Marshal.StringToCoTaskMemUTF8(path);
+            try { moavi_rdp_device(_h, Token(key), printer ? 1 : 0, n, p, on ? 1 : 0); }
+            finally
+            {
+                Marshal.FreeCoTaskMem(n);
+                if (p != IntPtr.Zero) { Marshal.FreeCoTaskMem(p); }
+            }
+            if (on) { _shared.Add(key); } else { _shared.Remove(key); }
+        }
+
+        private static int Token(string key)
+        {
+            var h = 17;
+            foreach (var ch in key) { h = unchecked((h * 31) + ch); }
+            return h & 0x7FFFFFFF;
+        }
+
+        /// <summary>The home folder and the volumes plugged in (USB sticks, disks), as the desktop names them.</summary>
+        private static List<(string Name, string Path)> Drives()
+        {
+            var list = new List<(string, string)> { ("Mac", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) };
+            try
+            {
+                foreach (var dir in Directory.GetDirectories("/Volumes"))
+                {
+                    var info = new DirectoryInfo(dir);
+                    if (info.LinkTarget is not null) { continue; }   // the start-up disk is a link to /
+                    var name = new string(info.Name.Where(char.IsLetterOrDigit).Take(8).ToArray());
+                    list.Add((name.Length > 0 ? name : "USB", dir));
+                }
+            }
+            catch { }
+            return list;
+        }
+
+        /// <summary>This Mac's printers (CUPS: lpstat -e).</summary>
+        private static List<string> Printers()
+        {
+            try
+            {
+                using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("/usr/bin/lpstat", "-e")
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false
+                })!;
+                var output = p.StandardOutput.ReadToEnd();
+                p.WaitForExit(3000);
+                return output.Split((char)10, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            }
+            catch { return []; }
+        }
+
+        /// <summary>장치: switch what this connection shares, as far as the pool allows it - at once, no reconnect.</summary>
+        private MenuFlyout DeviceMenu()
+        {
             var menu = new MenuFlyout();
-            foreach (var text in new[]
+            MenuItem Title(string text) => new() { Header = text, IsEnabled = false, FontWeight = FontWeight.SemiBold };
+            MenuItem Toggle(string text, bool on, bool allowed, Action<bool> act)
             {
-                $"{L("RdpDevDrives")}: {L(drives ? "RdpDevOn" : "RdpDevOff")}",
-                string.Format(L("RdpDevPrinters"), L(On("redirectprinters") ? "RdpDevOn" : "RdpDevOff")),
-                string.Format(L("RdpDevClipboard"), L(On("redirectclipboard", true) ? "RdpDevOn" : "RdpDevOff")),
-            })
+                var item = new MenuItem { Header = text, ToggleType = MenuItemToggleType.CheckBox, IsChecked = on, IsEnabled = allowed && _h != IntPtr.Zero };
+                item.Click += (_, _) => act(!on);
+                return item;
+            }
+
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            menu.Items.Add(Title(L("RdpDevDrives")));
+            foreach (var (name, path) in Drives())
             {
-                menu.Items.Add(new MenuItem { Header = text, IsEnabled = false });
+                var label = path == home ? L("RdpDevHome") : $"{System.IO.Path.GetFileName(path)} ({name})";
+                menu.Items.Add(Toggle(label, _shared.Contains("drive:" + path), _allowed.Drives, on => Share(on, false, name, path)));
+            }
+            menu.Items.Add(new Separator());
+            menu.Items.Add(Title(L("RdpDevPrinterList")));
+            var printers = Printers();
+            foreach (var name in printers)
+            {
+                menu.Items.Add(Toggle(name, _shared.Contains("printer:" + name), _allowed.Printers, on => Share(on, true, name, null)));
+            }
+            if (printers.Count == 0) { menu.Items.Add(new MenuItem { Header = L("RdpDevNone"), IsEnabled = false }); }
+            menu.Items.Add(new Separator());
+            menu.Items.Add(Toggle(L("RdpDevClipboardItem"), _clipOn, _allowed.Clipboard, on =>
+            {
+                _clipOn = on;
+                if (_h != IntPtr.Zero) { moavi_rdp_clipboard_on(_h, on ? 1 : 0); }
+            }));
+            if (!_allowed.Drives || !_allowed.Printers || !_allowed.Clipboard)
+            {
+                menu.Items.Add(new MenuItem { Header = L("RdpDevPolicy"), IsEnabled = false });
             }
             return menu;
         }

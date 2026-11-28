@@ -47,13 +47,14 @@ internal static class Viewer
         {
             if (Platform.Rdp is not { } rdp || string.IsNullOrEmpty(c.Rdp)) { return (L("RdpNeedsWindows"), null); }
             if (!fullScreen) { c.Rdp = c.Rdp.Replace("screen mode id:i:2", "screen mode id:i:1", StringComparison.Ordinal); }
+            var allowed = DevicePolicy.Of(c.Rdp);
             if (devices is not null) { c.Rdp = WithDevices(c.Rdp, devices); }
             if (early is not null)
             {
                 try { early.Deliver(c.Rdp, SignInPassword(api, c)); return (string.Empty, early.Session); }
                 catch { early.Cancel(); }
             }
-            return await rdp.OpenAsync(c.Rdp, title, fullScreen, SignInPassword(api, c));
+            return await rdp.OpenAsync(c.Rdp, title, fullScreen, SignInPassword(api, c), allowed);
         }
 
         if (c.Type == "spice" && !Platform.RemoteViewer && Platform.OpenSpice is { } openSpice)

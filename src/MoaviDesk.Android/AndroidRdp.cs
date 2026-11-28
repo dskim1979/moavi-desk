@@ -28,7 +28,7 @@ internal sealed class AndroidRdp(AppConfig config) : IRdpClient
 
     public IEarlyRdp? Start(string title, bool fullScreen) => null;
 
-    public Task<(string Error, RemoteSession? Session)> OpenAsync(string rdp, string title, bool fullScreen, string? password)
+    public Task<(string Error, RemoteSession? Session)> OpenAsync(string rdp, string title, bool fullScreen, string? password, DevicePolicy allowed)
     {
         try
         {
