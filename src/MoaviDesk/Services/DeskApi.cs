@@ -52,6 +52,8 @@ internal sealed class DeskPolicy
     [JsonPropertyName("client_drives")] public bool? ClientDrives { get; set; }
     [JsonPropertyName("client_printers")] public bool? ClientPrinters { get; set; }
     [JsonPropertyName("usb_redirect")] public bool? UsbRedirect { get; set; }
+    // the pool signs its Windows desktops in by itself (자동 로그인): the client arms it ahead
+    [JsonPropertyName("desktop_sso")] public bool? DesktopSso { get; set; }
 }
 
 /// <summary>공유 저장소: the user's folders on the pool's NAS (home / project / scratch).</summary>
@@ -343,6 +345,14 @@ internal sealed class DeskApi : IDisposable
         var d = await SendAsync(HttpMethod.Post, $"api/vlab/desktops/{Uri.EscapeDataString(desktopId)}/connect",
                                 new { protocol });
         return d.Deserialize<ConnectInfo>(Json)!;
+    }
+
+    /// <summary>자동 로그인 ahead of the connect: the desktop gets this user's short-lived sign-in now, so
+    /// the connect only checks it is still there. Best effort, never in the way.</summary>
+    public async Task ArmSignInAsync(string desktopId)
+    {
+        try { await SendAsync(HttpMethod.Post, $"api/vlab/me/desktops/{Uri.EscapeDataString(desktopId)}/logon-sso"); }
+        catch { /* the connect arms it then */ }
     }
 
     public Task PowerAsync(string desktopId, string action)

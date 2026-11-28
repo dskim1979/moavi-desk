@@ -34,13 +34,20 @@ internal static class Viewer
 
     public static async Task<(string Error, Process? Process)> OpenAsync(DeskApi api, ConnectInfo c,
                                                                        string viewerPath, string title, bool fullScreen,
-                                                                       MoaviDesk.Config.DeviceChoice? devices = null)
+                                                                       MoaviDesk.Config.DeviceChoice? devices = null,
+                                                                       RdpLauncher.Pending? early = null)
     {
+        if (early is not null && (c.Type != "rdp" || string.IsNullOrEmpty(c.Rdp))) { early.Cancel(); early = null; }
         if (c.Type == "rdp")
         {
             if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(c.Rdp)) { return (L("RdpNeedsWindows"), null); }
             if (!fullScreen) { c.Rdp = c.Rdp.Replace("screen mode id:i:2", "screen mode id:i:1", StringComparison.Ordinal); }
             if (devices is not null) { c.Rdp = WithDevices(c.Rdp, devices); }
+            if (early is not null)
+            {
+                try { early.Deliver(c.Rdp, SignInPassword(api, c)); return (string.Empty, early.Process); }
+                catch { early.Cancel(); }
+            }
             var (embedded, error, process) = RdpLauncher.Open(c.Rdp, title, fullScreen, SignInPassword(api, c));
             return embedded ? (error, process) : OpenRdp(c.Rdp, fullScreen);
         }

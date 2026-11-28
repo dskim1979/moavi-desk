@@ -29,21 +29,28 @@ internal static class RdpWindow
         "54d38bf7-b1ef-4479-9674-1bd6ea465258",
     ];
 
-    /// <summary>moavi-desk.exe --rdp &lt;file&gt; [--title &lt;name&gt;] [--full] [--password-stdin]</summary>
+    /// <summary>moavi-desk.exe --rdp &lt;file&gt; [--title &lt;name&gt;] [--full] [--password-stdin] [--wait]
+    /// With --wait the window opens at once ('연결하는 중') and the file comes when the engine answered
+    /// (RdpLauncher.Start / Pending.Deliver): the control loads meanwhile, the user sees the window right away.</summary>
     public static int Run(string[] args, MoaviDesk.Config.AppConfig config)
     {
         string Arg(string name) { var i = Array.IndexOf(args, name); return i >= 0 && i + 1 < args.Length ? args[i + 1] : ""; }
         var file = Arg(Switch);
         var title = Arg("--title");
-        string rdp;
-        try { rdp = File.ReadAllText(file); }
-        catch { return 2; }
-        finally { try { File.Delete(file); } catch { } }
-        var password = args.Contains("--password-stdin") ? Console.In.ReadLine() : null;
+        var wait = args.Contains("--wait");
+        Dictionary<string, string>? settings = null;
+        if (!wait)
+        {
+            try { settings = Parse(File.ReadAllText(file)); }
+            catch { return 2; }
+            finally { try { File.Delete(file); } catch { } }
+        }
+        // the password line (empty = none) comes when the parent knows the .rdp
+        var password = args.Contains("--password-stdin") ? Task.Run(() => Console.In.ReadLine()) : Task.FromResult<string?>(null);
 
         WF.Application.EnableVisualStyles();
         WF.Application.SetHighDpiMode(WF.HighDpiMode.PerMonitorV2);
-        using var form = new RdpForm(Parse(rdp), title, password, args.Contains("--full"), config);
+        using var form = new RdpForm(settings, wait ? file : null, title, password, args.Contains("--full"), config);
         WF.Application.Run(form);
         return form.ExitCode;
     }
@@ -197,9 +204,12 @@ internal static class RdpWindow
         private static readonly SD.Color Muted = SD.ColorTranslator.FromHtml("#B8C4D6");
         private static readonly SD.Color Accent = SD.ColorTranslator.FromHtml("#53B1B1");
 
-        private readonly Dictionary<string, string> _s;
+        private Dictionary<string, string> _s;
+        private readonly string? _pending;                  // --wait: the .rdp still to come
+        private readonly Task<string?> _passwordLine;
+        private readonly WF.Timer _arrive = new() { Interval = 100 };
         private readonly string _name;
-        private readonly string? _password;
+        private string? _password;
         private readonly bool _full;
         private readonly MoaviDesk.Config.AppConfig _config;
         private readonly WF.Label _status;
@@ -212,11 +222,13 @@ internal static class RdpWindow
 
         public int ExitCode { get; private set; }
 
-        public RdpForm(Dictionary<string, string> settings, string name, string? password, bool full, MoaviDesk.Config.AppConfig config)
+        public RdpForm(Dictionary<string, string>? settings, string? pending, string name, Task<string?> password, bool full, MoaviDesk.Config.AppConfig config)
         {
-            _s = settings;
+            _s = settings ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _pending = pending;
+            _passwordLine = password;
             _name = name.Length > 0 ? name : "MOAVI Desk";
-            _password = password;
+            if (full) { WindowState = WF.FormWindowState.Maximized; }
             _full = full;
             _config = config;
             Text = $"{_name} - MOAVI Desk";
@@ -290,7 +302,32 @@ internal static class RdpWindow
                 host.Dispose();
             }
             if (_rdp is null) { Fail(L("RdpNoControl")); return; }
-            try { Configure(); _rdp.Connect(); _watch.Start(); }
+            if (_pending is null) { Go(); return; }
+            // the window is up and the control loaded: the .rdp follows when the engine answered
+            var until = DateTime.UtcNow.AddSeconds(90);
+            _arrive.Tick += (_, _) =>
+            {
+                if (File.Exists(_pending))
+                {
+                    _arrive.Stop();
+                    try { _s = Parse(File.ReadAllText(_pending)); }
+                    catch (Exception ex) { Fail(ex.Message); return; }
+                    finally { try { File.Delete(_pending); } catch { } }
+                    Go();
+                }
+                else if (DateTime.UtcNow > until) { _arrive.Stop(); Fail(L("RdpFailed")); }
+            };
+            _arrive.Start();
+        }
+
+        private async void Go()
+        {
+            try
+            {
+                var line = await _passwordLine;
+                _password = string.IsNullOrEmpty(line) ? null : line;
+                Configure(); _rdp!.Connect(); _watch.Start();
+            }
             catch (Exception ex) { Fail(ex.Message); }
         }
 
@@ -499,6 +536,39 @@ internal static class RdpWindow
 /// <summary>Starts a desktop in MOAVI Desk's own window (or mstsc when the control cannot open the file).</summary>
 internal static class RdpLauncher
 {
+    /// <summary>A window opened before the engine answered: Deliver hands it the .rdp, Cancel closes it.</summary>
+    internal sealed class Pending(Process process, string path)
+    {
+        public Process Process { get; } = process;
+
+        public void Deliver(string rdp, string? password)
+        {
+            var part = path + ".part";
+            File.WriteAllText(part, rdp);
+            File.Move(part, path, overwrite: true);          // the window sees it whole or not at all
+            try { Process.StandardInput.WriteLine(password ?? ""); Process.StandardInput.Close(); } catch { }
+        }
+
+        public void Cancel()
+        {
+            try { if (!Process.HasExited) { Process.Kill(); } } catch { }
+            try { File.Delete(path); } catch { }
+        }
+    }
+
+    /// <summary>The window at the click: it shows '연결하는 중' and loads the Remote Desktop control while
+    /// the engine prepares the desktop. Null when it cannot start (the normal Open then).</summary>
+    public static Pending? Start(string title, bool fullScreen)
+    {
+        if (!OperatingSystem.IsWindows() || Environment.ProcessPath is not { } self) { return null; }
+        var file = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"moavi-{Guid.NewGuid():N}.rdp");
+        var psi = new ProcessStartInfo(self) { UseShellExecute = false, RedirectStandardInput = true };
+        foreach (var a in new[] { RdpWindow.Switch, file, "--title", title, "--wait", "--password-stdin" }) { psi.ArgumentList.Add(a); }
+        if (fullScreen) { psi.ArgumentList.Add("--full"); }
+        try { return Process.Start(psi) is { } p ? new Pending(p, file) : null; }
+        catch { return null; }
+    }
+
     /// <summary>Embedded false: this file needs mstsc (an RD Gateway access token).</summary>
     public static (bool Embedded, string Error, Process? Process) Open(string rdp, string title, bool fullScreen, string? password)
     {
